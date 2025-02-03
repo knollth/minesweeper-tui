@@ -3,23 +3,23 @@
 #include <stdint.h>
 
 typedef struct {
-    uint8_t width;
-    uint8_t height;
-    uint8_t mine_count;
+    int width;
+    int height;
+    int mine_count;
 } GameSettings;
 
 typedef struct {
-    uint8_t width;
-    uint8_t height;
-    uint8_t offset_x;
-    uint8_t offset_y;
+    int width;
+    int height;
+    int offset_x;
+    int offset_y;
 
 } BoxCoordinates;
 
 typedef struct {
     int isMine;
-    uint16_t x;
-    uint16_t y;
+    int cellsX;
+    int cellsY;
 } CellData;
 
 
@@ -31,5 +31,7 @@ void draw_selection_menu(BoxCoordinates b, uint8_t selection, GameSettings opts[
 void draw_box(BoxCoordinates b, uintattr_t fg, uintattr_t bg);
 void clear_box_content(BoxCoordinates b);
 void init_game();
-void draw_grid(uint8_t startx, uint8_t starty, uint8_t cellcols, uint8_t cellrows, uintattr_t fg, uintattr_t bg);
+void draw_grid(int startx, int starty, int cellcols, int cellrows, uintattr_t fg, uintattr_t bg);
 
+int get_grid_height(int cellsX);
+int get_grid_width(int cellsY);

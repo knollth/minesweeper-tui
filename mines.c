@@ -28,8 +28,8 @@ uint32_t intersection_right = 0x2524; // '┤'
 wchar_t flag = L'⚑';
 
 int main() {
-    struct tb_event ev;
-    int y = 0;
+    //struct tb_event ev;
+    //int y = 0;
 
     tb_init();
     setlocale(LC_ALL, ""); /* Fix unicode handling */
@@ -87,8 +87,8 @@ void init_game(){
 
 GameSettings make_game_selection(){
     struct tb_event ev;
-    uint8_t width = tb_width();
-    uint8_t height = tb_height();
+    int width = tb_width();
+    int height = tb_height();
 
     BoxCoordinates menu_box;
 
@@ -176,8 +176,8 @@ GameSettings make_custom_selection(BoxCoordinates b){
 
 
 void draw_custom_settings_menu(BoxCoordinates b, uint8_t selection){
-    uint8_t offset_x = b.offset_x+(b.width-20) / 2;
-    uint8_t offset_y = b.offset_y+(b.height-11)/2;
+    int offset_x = b.offset_x+(b.width-20) / 2;
+    int offset_y = b.offset_y+(b.height-11)/2;
 
     BoxCoordinates width_input_box = {5, 3, offset_x+7, offset_y};
     BoxCoordinates height_input_box = {5, 3, offset_x+7, offset_y+4};
@@ -209,8 +209,8 @@ void draw_custom_settings_menu(BoxCoordinates b, uint8_t selection){
 
 void draw_selection_menu(BoxCoordinates b,uint8_t selection, GameSettings options[], uint8_t number_of_options){
     GameSettings curOption;
-    uint8_t offset_x = b.offset_x + (b.width-18) / 2;
-    uint8_t offset_y = b.offset_y+  (b.height-8)/2;
+    int offset_x = b.offset_x + (b.width-18) / 2;
+    int offset_y = b.offset_y+  (b.height-8)/2;
 
     tb_printf(offset_x, offset_y, TB_BOLD+TB_MAGENTA, 0, "select difficulty:");
     offset_y += 3;
@@ -247,44 +247,61 @@ void clear_box_content(BoxCoordinates b){
     tb_present();
 }
 
-void draw_grid(uint8_t startx, uint8_t starty, uint8_t cellcols, uint8_t cellrows, uintattr_t fg, uintattr_t bg){
-    uint16_t rows = cellrows*2+1;
-    uint16_t cols = cellcols*4+1;
+
+int get_center_x_offset(int width){
+    return (tb_width() - width)/2;
+}
+
+int get_center_y_offset (int height){
+    return (tb_width() - height)/2;
+
+}
+
+int get_grid_height(int cellsX){
+    return cellsX * 2+1;
+}
+int get_grid_width(int cellsY){
+    return cellsY*4+1;
+}
+
+void draw_grid(int startx, int starty, int cellcols, int cellrows, uintattr_t fg, uintattr_t bg){
+    int rows = cellrows*2+1;
+    int cols = cellcols*4+1;
 
     for(int y=0; y < rows; y++){
         for(int x =0; x < cols; x++){
             if((y % 2 == 0)  &&  (x % 4 == 0)){
                 if(y == 0) { // top row
                     if(x == 0){
-                        tb_set_cell(x, y, top_left, fg, bg);
+                        tb_set_cell(startx+x, starty+y, top_left, fg, bg);
                     } else if (x == cols-1){
-                        tb_set_cell(x, y, top_right, fg, bg);
+                        tb_set_cell(startx+x, starty+y, top_right, fg, bg);
                     } else {
-                        tb_set_cell(x, y, top_intersection, fg, bg);
+                        tb_set_cell(startx+x, starty+y, top_intersection, fg, bg);
                     }
                 } else if(y == rows-1){ // bottom row
                     if(x == 0){
-                        tb_set_cell(x, y, bottom_left, fg, bg);
+                        tb_set_cell(startx+x, starty+y, bottom_left, fg, bg);
                     } else if(x == cols-1){
-                        tb_set_cell(x, y, bottom_right, fg, bg);
+                        tb_set_cell(startx+x, starty+y, bottom_right, fg, bg);
                     } else {
-                        tb_set_cell(x, y, bottom_intersection, fg, bg);
+                        tb_set_cell(startx+x, starty+y, bottom_intersection, fg, bg);
                     }
                 } else {
                     if(x == 0) {
-                        tb_set_cell(x, y, intersection_left, fg, bg);
+                        tb_set_cell(startx+x, starty+y, intersection_left, fg, bg);
                     } else if(x == cols-1){
-                        tb_set_cell(x, y, intersection_right, fg, bg);
+                        tb_set_cell(startx+x, starty+y, intersection_right, fg, bg);
                     } else {
-                        tb_set_cell(x, y, intersection, fg, bg);
+                        tb_set_cell(startx+x, starty+y, intersection, fg, bg);
                     }
                 } 
             } 
             if((y % 2 == 0) && (x % 4 != 0)){ // no intersections
-                tb_set_cell(x, y, horizontal , fg, bg);
+                tb_set_cell(startx+x, starty+y, horizontal , fg, bg);
             } 
             if((y % 2 != 0) && (x % 4 == 0)){
-                tb_set_cell(x, y, vertical, fg, bg);
+                tb_set_cell(startx+x, starty+y, vertical, fg, bg);
             }
             
         }

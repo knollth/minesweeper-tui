@@ -76,11 +76,14 @@ void init_game(){
     struct tb_event ev;
     GameSettings settings = make_game_selection();
     tb_clear();
-    tb_printf(0, 0, 0, 0, "Height: %d, Width: %d, Mines: %d", settings.height, settings.width, settings.mine_count);
+    tb_printf(0, 0, 0, 0, "Height: %d, Width: %d, Mines: %d", settings.cellsx, settings.cellsy, settings.mine_count);
     tb_present();
     tb_poll_event(&ev);
     tb_clear();
-    draw_grid(0, 0, settings.width, settings.height, 0, 0);
+    int grid_startx = get_center_x_offset(get_grid_width(settings.cellsx));
+    int grid_starty = get_center_y_offset(get_grid_height(settings.cellsy));
+
+    draw_grid(grid_startx, grid_starty, settings.cellsx, settings.cellsy, 0, 0);
     tb_present();
     tb_poll_event(&ev);
 }
@@ -95,8 +98,10 @@ GameSettings make_game_selection(){
     
     menu_box.width    = width*0.3;
     menu_box.height   = height*0.6;
-    menu_box.offset_x = (width - menu_box.width)/2;
-    menu_box.offset_y = (height - menu_box.height)/2;
+    //menu_box.offset_x = (width - menu_box.width)/2;
+    //menu_box.offset_y = (height - menu_box.height)/2;
+    menu_box.offset_x = get_center_x_offset(menu_box.width);
+    menu_box.offset_y = get_center_y_offset(menu_box.height);
     
     draw_box(menu_box, TB_GREEN|TB_BOLD,0);
 
@@ -226,10 +231,10 @@ void draw_selection_menu(BoxCoordinates b,uint8_t selection, GameSettings option
     for(int i = 0; i < number_of_options; i++){
         curOption = options[i];
         if(i == selection){
-            tb_printf(offset_x, offset_y+i,TB_BLUE,0, "%d x %d (%d Mines)", curOption.width, curOption.height, curOption.mine_count);
+            tb_printf(offset_x, offset_y+i,TB_BLUE,0, "%d x %d (%d Mines)", curOption.cellsx, curOption.cellsy, curOption.mine_count);
             tb_set_cell(offset_x-1, offset_y+i, '>', TB_BLUE, 0);
         }else{
-            tb_printf(offset_x, offset_y+i,0,0, "%d x %d (%d Mines)", curOption.width, curOption.height, curOption.mine_count);
+            tb_printf(offset_x, offset_y+i,0,0, "%d x %d (%d Mines)", curOption.cellsx, curOption.cellsy, curOption.mine_count);
         }
     }
     tb_present();
@@ -253,7 +258,7 @@ int get_center_x_offset(int width){
 }
 
 int get_center_y_offset (int height){
-    return (tb_width() - height)/2;
+    return (tb_height() - height)/2;
 
 }
 

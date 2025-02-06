@@ -77,20 +77,62 @@ int main() {
 
 void init_game(){
     struct tb_event ev;
-    GameSettings settings = make_game_selection();
+    GameData g = {};
+    make_game_selection(&g);
+    allocate_game_grid(&g);
+    if(g.grid == NULL){
+        tb_clear();
+        tb_printf(0, 0, 0, 0, "error allocating grid");
+        tb_poll_event(&ev);
+        return;
+    }
+
     tb_clear();
     tb_printf(0, 0, 0, 0, "Height: %d, Width: %d, Mines: %d",
-              settings.cellsx, settings.cellsy, settings.mine_count);
+              g.width, g.height, g.mine_count);
     tb_present();
     tb_poll_event(&ev);
     tb_clear();
-    int grid_startx = get_center_x_offset(get_grid_width(settings.cellsx));
-    int grid_starty = get_center_y_offset(get_grid_height(settings.cellsy));
 
 
-    draw_grid(grid_startx, grid_starty, settings.cellsx, settings.cellsy, 0, 0);
+
+    int grid_startx = get_center_x_offset(get_grid_width(g.width));
+    int grid_starty = get_center_y_offset(get_grid_height(g.height));
+    draw_grid(grid_startx, grid_starty, g.width, g.height, 0, 0);
+    
+
     tb_present();
     tb_poll_event(&ev);
+    free_grid(&g);
+    return;
+}
+
+void allocate_game_grid(GameData* g){
+    g->grid = malloc(g->height*sizeof(CellData));
+    if(!g->grid){
+        tb_clear();
+        tb_printf(0, 0, 0, 0, "Error Allocating Minesweeper Grid Buffer");
+        return;
+    }
+    for(int y = 0; y < g->height;y++){
+        g->grid[y] = malloc(g->width * sizeof(CellData));
+        if (!g->grid[y]) {
+            for (int j = 0; j < y; j++) free(g->grid[j]);
+            free(g->grid);
+            g->grid = NULL;
+            return;
+        }
+    }
+}
+
+void free_grid(GameData *game) {
+    if (game->grid) {
+        for (int i = 0; i < game->width; i++) {
+            free(game->grid[i]);
+        }
+        free(game->grid);
+        game->grid = NULL;
+    }
 }
 /*
 void place_mines(GameSettings s){
@@ -109,9 +151,88 @@ void place_mines(GameSettings s){
     }
 }
 */
+/*
+void draw_mines(int startx, int starty, int cellcols, int cellrows){
+    int rows = cellrows*2+1;
+    int cols = cellcols*4+1;
+
+    for(int y=0; y < rows; y++){
+        for(int x=0; x < cols; x++){
+            if(x % 4 == 2 && y%2 == 1){
+
+            }
+        }
+    }
+}
+*/
+
+int get_center_x_offset(int width){
+    return (tb_width() - width)/2;
+}
+
+int get_center_y_offset (int height){
+    return (tb_height() - height)/2;
+
+}
+
+int get_grid_height(int cellsX){
+    return cellsX * 2+1;
+}
+int get_grid_width(int cellsY){
+    return cellsY*4+1;
+}
+
+void draw_grid(int startx, int starty, int width, int height, uintattr_t fg, uintattr_t bg){
+    int rows = height*2+1;
+    int cols = width*4+1;
+
+    for(int y=0; y < rows; y++){
+        for(int x =0; x < cols; x++){
+            if((y % 2 == 0)  &&  (x % 4 == 0)){
+                if(y == 0) { // top row
+                    if(x == 0){
+                        tb_set_cell(startx+x, starty+y, top_left, fg, bg);
+                    } else if (x == cols-1){
+                        tb_set_cell(startx+x, starty+y, top_right, fg, bg);
+                    } else {
+                        tb_set_cell(startx+x, starty+y, top_intersection, fg, bg);
+                    }
+                } else if(y == rows-1){ // bottom row
+                    if(x == 0){
+                        tb_set_cell(startx+x, starty+y, bottom_left, fg, bg);
+                    } else if(x == cols-1){
+                        tb_set_cell(startx+x, starty+y, bottom_right, fg, bg);
+                    } else {
+                        tb_set_cell(startx+x, starty+y, bottom_intersection, fg, bg);
+                    }
+                } else {
+                    if(x == 0) {
+                        tb_set_cell(startx+x, starty+y, intersection_left, fg, bg);
+                    } else if(x == cols-1){
+                        tb_set_cell(startx+x, starty+y, intersection_right, fg, bg);
+                    } else {
+                        tb_set_cell(startx+x, starty+y, intersection, fg, bg);
+                    }
+                } 
+            } 
+            if((y % 2 == 0) && (x % 4 != 0)){ // no intersections
+                tb_set_cell(startx+x, starty+y, horizontal , fg, bg);
+            } 
+            if((y % 2 != 0) && (x % 4 == 0)){
+                tb_set_cell(startx+x, starty+y, vertical, fg, bg);
+            }
+            
+        }
+    }
+}
 
 
-GameSettings make_game_selection(){
+
+
+// ----------------- Game Menu -----------------
+
+
+void make_game_selection(GameData* g){
     struct tb_event ev;
     int width = tb_width();
     int height = tb_height();
@@ -128,15 +249,16 @@ GameSettings make_game_selection(){
     
     draw_box(menu_box, TB_GREEN|TB_BOLD,0);
 
-    uint8_t selection = 0;
     
 
     GameSettings options[] = { // provisoric, should later be able to save custom game settings
         {8, 8, 10},   // Option 1: 8x8 grid, 10 mines
         {16, 16, 40}, // Option 2: 16x16 grid, 40 mines
-        {24, 24, 99}  // Option 3: 24x24 grid, 99 mines
+        {30, 16, 99}  // Option 3: 24x24 grid, 99 mines
     };
     uint8_t number_of_options = 3; // including custom option
+    uint8_t selection = 0;
+    GameSettings selected_setting;
     // uint8_t number_of_options = sizeof(options) / sizeof(options[0]);
 
     while(true){
@@ -162,13 +284,15 @@ GameSettings make_game_selection(){
         if(ev.key == TB_KEY_ENTER){
             if(selection == number_of_options){
                 clear_box_content(menu_box);
-                make_custom_selection(menu_box);
+                selected_setting = make_custom_selection(menu_box);
             } else {
-                break;
+                selected_setting = options[selection];
             }
+            break;
         }
     }
-    return options[selection];
+    g->width = selected_setting.width;
+    g->height = selected_setting.height;
 }
 
 GameSettings make_custom_selection(BoxCoordinates b){
@@ -254,10 +378,10 @@ void draw_selection_menu(BoxCoordinates b,uint8_t selection, GameSettings option
     for(int i = 0; i < number_of_options; i++){
         curOption = options[i];
         if(i == selection){
-            tb_printf(offset_x, offset_y+i,TB_BLUE,0, "%d x %d (%d Mines)", curOption.cellsx, curOption.cellsy, curOption.mine_count);
+            tb_printf(offset_x, offset_y+i,TB_BLUE,0, "%d x %d (%d Mines)", curOption.width, curOption.height, curOption.mine_count);
             tb_set_cell(offset_x-1, offset_y+i, '>', TB_BLUE, 0);
         }else{
-            tb_printf(offset_x, offset_y+i,0,0, "%d x %d (%d Mines)", curOption.cellsx, curOption.cellsy, curOption.mine_count);
+            tb_printf(offset_x, offset_y+i,0,0, "%d x %d (%d Mines)", curOption.width, curOption.height, curOption.mine_count);
         }
     }
     tb_present();
@@ -273,80 +397,6 @@ void clear_box_content(BoxCoordinates b){
         }
     }
     tb_present();
-}
-
-
-int get_center_x_offset(int width){
-    return (tb_width() - width)/2;
-}
-
-int get_center_y_offset (int height){
-    return (tb_height() - height)/2;
-
-}
-
-int get_grid_height(int cellsX){
-    return cellsX * 2+1;
-}
-int get_grid_width(int cellsY){
-    return cellsY*4+1;
-}
-/*
-void draw_mines(int startx, int starty, int cellcols, int cellrows){
-    int rows = cellrows*2+1;
-    int cols = cellcols*4+1;
-
-    for(int y=0; y < rows; y++){
-        for(int x=0; x < cols; x++){
-            if(x % 4 == 2 && y%2 == 1){
-
-            }
-        }
-    }
-}
-*/
-void draw_grid(int startx, int starty, int cellcols, int cellrows, uintattr_t fg, uintattr_t bg){
-    int rows = cellrows*2+1;
-    int cols = cellcols*4+1;
-
-    for(int y=0; y < rows; y++){
-        for(int x =0; x < cols; x++){
-            if((y % 2 == 0)  &&  (x % 4 == 0)){
-                if(y == 0) { // top row
-                    if(x == 0){
-                        tb_set_cell(startx+x, starty+y, top_left, fg, bg);
-                    } else if (x == cols-1){
-                        tb_set_cell(startx+x, starty+y, top_right, fg, bg);
-                    } else {
-                        tb_set_cell(startx+x, starty+y, top_intersection, fg, bg);
-                    }
-                } else if(y == rows-1){ // bottom row
-                    if(x == 0){
-                        tb_set_cell(startx+x, starty+y, bottom_left, fg, bg);
-                    } else if(x == cols-1){
-                        tb_set_cell(startx+x, starty+y, bottom_right, fg, bg);
-                    } else {
-                        tb_set_cell(startx+x, starty+y, bottom_intersection, fg, bg);
-                    }
-                } else {
-                    if(x == 0) {
-                        tb_set_cell(startx+x, starty+y, intersection_left, fg, bg);
-                    } else if(x == cols-1){
-                        tb_set_cell(startx+x, starty+y, intersection_right, fg, bg);
-                    } else {
-                        tb_set_cell(startx+x, starty+y, intersection, fg, bg);
-                    }
-                } 
-            } 
-            if((y % 2 == 0) && (x % 4 != 0)){ // no intersections
-                tb_set_cell(startx+x, starty+y, horizontal , fg, bg);
-            } 
-            if((y % 2 != 0) && (x % 4 == 0)){
-                tb_set_cell(startx+x, starty+y, vertical, fg, bg);
-            }
-            
-        }
-    }
 }
 
 void draw_box(BoxCoordinates b, uintattr_t fg, uintattr_t bg){

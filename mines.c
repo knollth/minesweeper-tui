@@ -26,6 +26,9 @@ uint32_t intersection_left = 0x251C; // '├'
 uint32_t intersection_right = 0x2524; // '┤'
 //
 wchar_t flag = L'⚑';
+wchar_t mine = L'💣';
+
+
 
 int main() {
     //struct tb_event ev;
@@ -76,17 +79,37 @@ void init_game(){
     struct tb_event ev;
     GameSettings settings = make_game_selection();
     tb_clear();
-    tb_printf(0, 0, 0, 0, "Height: %d, Width: %d, Mines: %d", settings.cellsx, settings.cellsy, settings.mine_count);
+    tb_printf(0, 0, 0, 0, "Height: %d, Width: %d, Mines: %d",
+              settings.cellsx, settings.cellsy, settings.mine_count);
     tb_present();
     tb_poll_event(&ev);
     tb_clear();
     int grid_startx = get_center_x_offset(get_grid_width(settings.cellsx));
     int grid_starty = get_center_y_offset(get_grid_height(settings.cellsy));
 
+
     draw_grid(grid_startx, grid_starty, settings.cellsx, settings.cellsy, 0, 0);
     tb_present();
     tb_poll_event(&ev);
 }
+/*
+void place_mines(GameSettings s){
+    int n = s.cellsx * s.cellsy;
+    uint8_t* isMine = (uint8_t*) calloc(5, sizeof(uint8_t));
+
+    srand(time(NULL));
+
+    for(int count = 0; count < s.mine_count;){
+        int i = rand() % n;
+        if(!isMine[i]){
+            isMine[i] = 1;
+            // store mine here
+        }
+
+    }
+}
+*/
+
 
 GameSettings make_game_selection(){
     struct tb_event ev;
@@ -118,7 +141,7 @@ GameSettings make_game_selection(){
 
     while(true){
         clear_box_content(menu_box);
-        draw_selection_menu(menu_box, selection ,options, number_of_options);
+        draw_selection_menu(menu_box, selection, options, number_of_options);
 
         tb_poll_event(&ev);
 
@@ -268,7 +291,20 @@ int get_grid_height(int cellsX){
 int get_grid_width(int cellsY){
     return cellsY*4+1;
 }
+/*
+void draw_mines(int startx, int starty, int cellcols, int cellrows){
+    int rows = cellrows*2+1;
+    int cols = cellcols*4+1;
 
+    for(int y=0; y < rows; y++){
+        for(int x=0; x < cols; x++){
+            if(x % 4 == 2 && y%2 == 1){
+
+            }
+        }
+    }
+}
+*/
 void draw_grid(int startx, int starty, int cellcols, int cellrows, uintattr_t fg, uintattr_t bg){
     int rows = cellrows*2+1;
     int cols = cellcols*4+1;

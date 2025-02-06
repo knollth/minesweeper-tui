@@ -1,6 +1,8 @@
 //#define TB_IMPL // not needed if termbox2.h included first
 #include "termbox2.h"
 #include <stdint.h>
+#include <stdlib.h>
+#include <time.h>
 
 typedef struct {
     int cellsx;
@@ -13,11 +15,12 @@ typedef struct {
     int height;
     int offset_x;
     int offset_y;
-
 } BoxCoordinates;
 
 typedef struct {
     int isMine;
+    int isDiscovered;
+    int isFlagged;
     int x;
     int y;
 } CellData;
@@ -32,6 +35,7 @@ void draw_box(BoxCoordinates b, uintattr_t fg, uintattr_t bg);
 void clear_box_content(BoxCoordinates b);
 void init_game();
 void draw_grid(int startx, int starty, int cellcols, int cellrows, uintattr_t fg, uintattr_t bg);
+void draw_mines(int startx, int starty, int cellcols, int cellrows);
 
 
 

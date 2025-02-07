@@ -99,16 +99,18 @@ void init_game(){
     int grid_startx = get_center_x_offset(get_grid_width(g.width));
     int grid_starty = get_center_y_offset(get_grid_height(g.height));
     draw_grid(grid_startx, grid_starty, g.width, g.height, 0, 0);
+    //place_mines(&g);
+    //draw_mines(grid_startx, grid_starty, &g);
+    //
+    //TODO DEBUG MINE PLACE AND DRAW
     
-
-    tb_present();
     tb_poll_event(&ev);
-    free_grid(&g);
+    free_game_grid(&g);
     return;
 }
 
 void allocate_game_grid(GameData* g){
-    g->grid = malloc(g->height*sizeof(CellData));
+    g->grid = malloc(g->height*sizeof(CellData*));
     if(!g->grid){
         tb_clear();
         tb_printf(0, 0, 0, 0, "Error Allocating Minesweeper Grid Buffer");
@@ -125,44 +127,50 @@ void allocate_game_grid(GameData* g){
     }
 }
 
-void free_grid(GameData *game) {
+void free_game_grid(GameData *game) {
     if (game->grid) {
-        for (int i = 0; i < game->width; i++) {
+        for (int i = 0; i < game->height; i++) {
             free(game->grid[i]);
         }
         free(game->grid);
         game->grid = NULL;
     }
 }
-/*
-void place_mines(GameSettings s){
-    int n = s.cellsx * s.cellsy;
-    uint8_t* isMine = (uint8_t*) calloc(5, sizeof(uint8_t));
+void place_mines(GameData* g){
+    int n = g->width * g->height;
+    CellData* curCel;
+    unsigned x;
+    unsigned y;
 
     srand(time(NULL));
 
-    for(int count = 0; count < s.mine_count;){
+    for(int count = 0; count < g->mine_count;){
         int i = rand() % n;
-        if(!isMine[i]){
-            isMine[i] = 1;
-            // store mine here
-        }
+        x = i%g->height;
+        y = i/g->height;
 
+        curCel = &g->grid[y][x];
+
+        if(!(curCel->isMine)){
+            curCel->isMine = true;
+            count++;
+        }
     }
 }
-*/
 /*
-void draw_mines(int startx, int starty, int cellcols, int cellrows){
-    int rows = cellrows*2+1;
-    int cols = cellcols*4+1;
+void draw_mines(int startx, int starty, GameData* g){
+    int rows = get_grid_height(g->height);
+    int cols = get_grid_width(g->width);
 
-    for(int y=0; y < rows; y++){
-        for(int x=0; x < cols; x++){
+    for(int y=0; y < g->height; y++){
+        for(int x=0; x < g->width; x++){
             if(x % 4 == 2 && y%2 == 1){
-
+                if(g->grid[y][x].isMine) 
+                    tb_set_cell(startx+x, starty+y, mine, 0, 0);
             }
         }
     }
+    tb_present();
 }
 */
 
@@ -221,9 +229,9 @@ void draw_grid(int startx, int starty, int width, int height, uintattr_t fg, uin
             if((y % 2 != 0) && (x % 4 == 0)){
                 tb_set_cell(startx+x, starty+y, vertical, fg, bg);
             }
-            
         }
     }
+    tb_present();
 }
 
 

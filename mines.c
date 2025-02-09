@@ -69,9 +69,9 @@ void init_game(){
 
 
 
-    int grid_startx = get_center_x_offset(get_termgrid_width(g.width));
-    int grid_starty = get_center_y_offset(get_termgrid_height(g.height));
-    draw_grid(grid_startx, grid_starty, g.width, g.height, 0, 0);
+    int grid_startx = get_center_x_offset(get_display_grid_width(g.width));
+    int grid_starty = get_center_y_offset(get_display_grid_height(g.height));
+    draw_display_grid(grid_startx, grid_starty, g.width, g.height, 0, 0);
     place_mines(&g);
     draw_mines(grid_startx, grid_starty, &g);
 
@@ -127,49 +127,74 @@ void place_mines(GameData* g){
 
         if(!(curCel->isMine)){
             curCel->isMine = true;
+            incr_adj_minecounts(x, y, g);
             count++;
         }
     }
 }
 
-void get_adjacent_mines(uint x, int y, GameData* g){
-    assert("cell must be within game grid"
-           && y >= 0 && y < g->height 
-           && x >= 0 && x < g->width);
+void incr_adj_minecounts(uint16_t x, uint16_t y, GameData* g){
+    assert("cell must be within game grid" &&
+           y < g->height && x < g->width);
+
+    uint16_t lower_y = (y == 0) ? y: y-1; 
+    uint16_t upper_y = (y == g->height-1) ? y: y+1; 
+
+    uint16_t lower_x = (x == 0) ? x: x-1; 
+    uint16_t upper_x = (x == g->width-1) ? x: x+1; 
 
 
-
+    //if (y > 0 && y < g->height-1 && x>0 && x < g->width) {
+        for(int i = lower_y; i <= upper_y; i++){
+            for (int j = lower_x; j <= upper_x; j++){
+                if(i != y || j != x){
+                    g->grid[i][j].adjMines++;
+                }
+            }
+        }
+    //} 
 }
+
+
+
 // ----------------- Game Rendering -----------------
+//
 
 void draw_mines(int startx, int starty, GameData* g){
     for(int y=0; y < g->height; y++){
         for(int x=0; x < g->width; x++){
-            if(g->grid[y][x].isMine){
-                tb_set_cell(startx+get_termgrid_x(x),
-                            starty+get_termgrid_y(y),
-                            mine, 0, 0);
+            CellData curCel = g->grid[y][x];
+
+            int disp_x = startx+get_display_grid_x(x);
+            int disp_y = starty+get_display_grid_y(y);
+
+            if(curCel.isDiscovered){
+                if(curCel.isMine){
+                    tb_set_cell(disp_x,disp_y,mine, 0, 0);
+                } else if(curCel.adjMines > 0){
+                    tb_printf(disp_x,disp_y,0,0,"%d", curCel.adjMines);
+                }
             }
         }
     }
     tb_present();
 }
-int get_termgrid_x(int x){
+int get_display_grid_x(int x){
     return 2+(4*x);
 }
 
-int get_termgrid_y(int y){
+int get_display_grid_y(int y){
     return 1+(2*y);
 }
 
-int get_termgrid_height(int height){
+int get_display_grid_height(int height){
     return height* 2+1;
 }
-int get_termgrid_width(int width){
+int get_display_grid_width(int width){
     return width*4+1;
 }
 
-void draw_grid(int startx, int starty, int width, int height, uintattr_t fg, uintattr_t bg){
+void draw_display_grid(int startx, int starty, int width, int height, uintattr_t fg, uintattr_t bg){
     int rows = height*2+1;
     int cols = width*4+1;
 

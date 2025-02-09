@@ -16,6 +16,7 @@ typedef struct {
     uint8_t isMine;
     uint8_t isDiscovered;
     uint8_t isFlagged;
+    uint8_t adjMines;
 } CellData;
 
 typedef struct {
@@ -39,15 +40,18 @@ typedef struct {
 void free_game_grid(GameData *game);
 void allocate_game_grid(GameData* g);
 void place_mines(GameData* g);
+void incr_adj_minecounts(uint16_t x, uint16_t y, GameData* g);
+void update_adjcell_minecount(uint16_t x, uint16_t y, GameData* g);
 
 void draw_mines(int startx, int starty, GameData* g);
+void format_display_cell(uint16_t x, uint16_t y, uint16_t fg, uint16_t bg);
+void draw_display_grid(int startx, int starty, int cellcols, int cellrows, uintattr_t fg, uintattr_t bg);
 
-void draw_grid(int startx, int starty, int cellcols, int cellrows, uintattr_t fg, uintattr_t bg);
-int get_termgrid_x(int x);
-int get_termgrid_y(int y);
+int get_display_grid_x(int x);
+int get_display_grid_y(int y);
 
-int get_termgrid_height(int height);
-int get_termgrid_width(int width);
+int get_display_grid_height(int height);
+int get_display_grid_width(int width);
 
 
 int get_center_x_offset(int width);

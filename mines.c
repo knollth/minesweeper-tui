@@ -2,29 +2,54 @@
 #include <locale.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <wchar.h>
 
 
 
+#define DISPLAY_GRID_X(x) (2 + 4 * (x))
+#define DISPLAY_GRID_Y(y) (1 + 2 * (y))
+#define DISPLAY_GRID_HEIGHT(h) ((h) * 2 + 1)
+#define DISPLAY_GRID_WIDTH(w) ((w) * 4 + 1)
+
+inline uint16_t get_center_x_offset(int width){
+    return (tb_width() - width)/2;
+}
+inline uint16_t get_center_y_offset (int height){
+    return (tb_height() - height)/2;
+}
+
+inline uint16_t display_grid_startx(GameData* g){
+    return (tb_width() - DISPLAY_GRID_WIDTH(g->width))/2;
+}
+
+inline uint16_t display_grid_starty(GameData* g){
+    return (tb_height() - (DISPLAY_GRID_HEIGHT(g->height)))/2;
+}
+
+//    int starty = (tb_height()-rows)/2;
+
+
+
 // Box-drawing Unicode characters (using Nerd Fonts)
-uint32_t top_left_round = 0x256D;   // '╭'
-uint32_t top_right_round = 0x256E;  // '╮'
-uint32_t bottom_left_round = 0x2570; // '╰'
-uint32_t bottom_right_round = 0x256F; // '╯'
-uint32_t horizontal = 0x2500;  // '─'
-uint32_t vertical = 0x2502;    // '│'
-uint32_t vert_b = 0x2503;    // '┃'
+const uint32_t top_left_round = 0x256D;   // '╭'
+const uint32_t top_right_round = 0x256E;  // '╮'
+const uint32_t bottom_left_round = 0x2570; // '╰'
+const uint32_t bottom_right_round = 0x256F; // '╯'
+const uint32_t horizontal = 0x2500;  // '─'
+const uint32_t vertical = 0x2502;    // '│'
+const uint32_t vert_b = 0x2503;    // '┃'
 //
-uint32_t top_left = 0x250C;    // '┌'
-uint32_t top_right = 0x2510;   // '┐'
-uint32_t bottom_left = 0x2514; // '└'
-uint32_t bottom_right = 0x2518; // '┘'
-uint32_t intersection = 0x253C; // '┼'
-uint32_t top_intersection = 0x252C; // '┬'
-uint32_t bottom_intersection = 0x2534; // '┴'
-uint32_t intersection_left = 0x251C; // '├'
-uint32_t intersection_right = 0x2524; // '┤'
+const uint32_t top_left = 0x250C;    // '┌'
+const uint32_t top_right = 0x2510;   // '┐'
+const uint32_t bottom_left = 0x2514; // '└'
+const uint32_t bottom_right = 0x2518; // '┘'
+const uint32_t intersection = 0x253C; // '┼'
+const uint32_t top_intersection = 0x252C; // '┬'
+const uint32_t bottom_intersection = 0x2534; // '┴'
+const uint32_t intersection_left = 0x251C; // '├'
+const uint32_t intersection_right = 0x2524; // '┤'
 //
 wchar_t flag = L'⚑';
 wchar_t mine = L'💣';
@@ -67,18 +92,30 @@ void init_game(){
     tb_poll_event(&ev);
     tb_clear();
 
+    draw_display_grid(&g, 0, 0);
 
-
-    int grid_startx = get_center_x_offset(get_display_grid_width(g.width));
-    int grid_starty = get_center_y_offset(get_display_grid_height(g.height));
-    draw_display_grid(grid_startx, grid_starty, g.width, g.height, 0, 0);
     place_mines(&g);
-    draw_mines(grid_startx, grid_starty, &g);
+    draw_mines(&g);
 
     tb_poll_event(&ev);
     free_game_grid(&g);
     return;
 }
+/*
+void handle_game_input(GameData* g){
+    struct tb_event ev;
+    tb_poll_event(&ev);
+    int ch = ev.ch;
+
+    uint16_t curX = 0;
+    uint16_t curY = 0;
+
+
+
+
+    while()
+}
+*/
 
 void allocate_game_grid(GameData* g){
     //g->grid = malloc(g->height*sizeof(CellData*));
@@ -159,44 +196,54 @@ void incr_adj_minecounts(uint16_t x, uint16_t y, GameData* g){
 
 // ----------------- Game Rendering -----------------
 //
+void draw_cursor(uint16_t x, uint16_t y, GameData* g){
+    CellData c = g->grid[y][x];
+    uint16_t startx = display_grid_startx(g);
+    uint16_t starty = display_grid_starty(g);
 
-void draw_mines(int startx, int starty, GameData* g){
+    uint16_t disp_x = startx+DISPLAY_GRID_X(x);
+    uint16_t disp_y = starty+DISPLAY_GRID_Y(x);
+
+    tb_set_cell(disp_x,  disp_y, (char)c.adjMines, 0, TB_BRIGHT);
+    tb_set_cell(disp_x-1,  disp_y, (char)c.adjMines, 0, TB_BRIGHT);
+    tb_set_cell(disp_x+1,  disp_y, (char)c.adjMines, 0, TB_BRIGHT);
+}
+
+
+void draw_mines(GameData* g){
+    uint16_t startx = display_grid_startx(g);
+    uint16_t starty = display_grid_starty(g);
     for(int y=0; y < g->height; y++){
         for(int x=0; x < g->width; x++){
             CellData curCel = g->grid[y][x];
 
-            int disp_x = startx+get_display_grid_x(x);
-            int disp_y = starty+get_display_grid_y(y);
+            uint16_t disp_x = startx+DISPLAY_GRID_X(x);
+            uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
 
-            if(curCel.isDiscovered){
+            //if(curCel.isDiscovered){
                 if(curCel.isMine){
                     tb_set_cell(disp_x,disp_y,mine, 0, 0);
                 } else if(curCel.adjMines > 0){
                     tb_printf(disp_x,disp_y,0,0,"%d", curCel.adjMines);
                 }
-            }
+           //}
         }
     }
     tb_present();
 }
-int get_display_grid_x(int x){
-    return 2+(4*x);
-}
 
-int get_display_grid_y(int y){
-    return 1+(2*y);
-}
+  
 
-int get_display_grid_height(int height){
-    return height* 2+1;
-}
-int get_display_grid_width(int width){
-    return width*4+1;
-}
+void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
+    uint16_t rows = DISPLAY_GRID_HEIGHT(g->height);
+    uint16_t cols = DISPLAY_GRID_WIDTH(g->width);
 
-void draw_display_grid(int startx, int starty, int width, int height, uintattr_t fg, uintattr_t bg){
-    int rows = height*2+1;
-    int cols = width*4+1;
+    //int startx = (tb_width()-cols)/2;
+    uint16_t startx = display_grid_startx(g);
+    //uint16_t starty = (tb_height()-rows)/2;
+    uint16_t starty = display_grid_starty(g);
+
+
 
     for(int y=0; y < rows; y++){
         for(int x =0; x < cols; x++){
@@ -438,14 +485,6 @@ void draw_box(BoxCoordinates b, uintattr_t fg, uintattr_t bg){
         }
     }
     tb_present();
-}
-
-
-int get_center_x_offset(int width){
-    return (tb_width() - width)/2;
-}
-int get_center_y_offset (int height){
-    return (tb_height() - height)/2;
 }
 
 

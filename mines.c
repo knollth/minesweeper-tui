@@ -2,6 +2,7 @@
 #include <locale.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <stdlib.h>
 #include <wchar.h>
 
 
@@ -36,34 +37,6 @@ int main() {
 
     tb_init();
     setlocale(LC_ALL, ""); /* Fix unicode handling */
-    /*
-    tb_printf(0, y++, TB_GREEN, 0, "hello from termbox");
-    tb_printf(0, y++, 0, 0, "width=%d height=%d", tb_width(), tb_height());
-    tb_printf(0, y++, 0, 0, "press any key...");
-    tb_printf(0, y++, 0, 0, "top_left_round width: %d", wcwidth(top_left_round));
-    tb_printf(0, y++, 0, 0, "top_left width: %d", wcwidth(top_left));
-    tb_printf(0, y++, 0, 0, "intersection width: %d", wcwidth(intersection));
-    tb_printf(0, y++, 0, 0, "left_intersection width: %d", wcwidth(intersection_left));
-    tb_present();
-
-    tb_poll_event(&ev);
-
-    y++;
-    tb_printf(0, y++, 0, 0, "event type=%d key=%d ch=%c", ev.type, ev.key, ev.ch);
-    tb_printf(8, y++, 0, 0, "width of character ╭ : %d", top_left, wcwidth(top_left));
-    tb_present();
-
-    tb_poll_event(&ev);
-    
-    y++;
-    tb_set_cell(4, y++, 'H', TB_BLUE,0);
-    tb_set_cell_ex(4, y++, &top_left,wcwidth(top_left), TB_BLUE,0);
-    tb_set_cursor(4, 4);
-    tb_present();
-    tb_clear();
-    tb_hide_cursor();
-    */
-    //tb_present();
     init_game();
 
 
@@ -96,28 +69,28 @@ void init_game(){
 
 
 
-    int grid_startx = get_center_x_offset(get_grid_width(g.width));
-    int grid_starty = get_center_y_offset(get_grid_height(g.height));
+    int grid_startx = get_center_x_offset(get_termgrid_width(g.width));
+    int grid_starty = get_center_y_offset(get_termgrid_height(g.height));
     draw_grid(grid_startx, grid_starty, g.width, g.height, 0, 0);
-    //place_mines(&g);
-    //draw_mines(grid_startx, grid_starty, &g);
-    //
-    //TODO DEBUG MINE PLACE AND DRAW
-    
+    place_mines(&g);
+    draw_mines(grid_startx, grid_starty, &g);
+
     tb_poll_event(&ev);
     free_game_grid(&g);
     return;
 }
 
 void allocate_game_grid(GameData* g){
-    g->grid = malloc(g->height*sizeof(CellData*));
+    //g->grid = malloc(g->height*sizeof(CellData*));
+    g->grid = calloc(g->height,sizeof(CellData*));
     if(!g->grid){
         tb_clear();
         tb_printf(0, 0, 0, 0, "Error Allocating Minesweeper Grid Buffer");
         return;
     }
     for(int y = 0; y < g->height;y++){
-        g->grid[y] = malloc(g->width * sizeof(CellData));
+        //g->grid[y] = malloc(g->width * sizeof(CellData));
+        g->grid[y] = calloc(g->width, sizeof(CellData));
         if (!g->grid[y]) {
             for (int j = 0; j < y; j++) free(g->grid[j]);
             free(g->grid);
@@ -136,18 +109,19 @@ void free_game_grid(GameData *game) {
         game->grid = NULL;
     }
 }
+// ----------------- Cell Handling/ Operations-----------------
 void place_mines(GameData* g){
     int n = g->width * g->height;
     CellData* curCel;
-    unsigned x;
-    unsigned y;
+    uint16_t x;
+    uint16_t y;
 
     srand(time(NULL));
 
     for(int count = 0; count < g->mine_count;){
         int i = rand() % n;
-        x = i%g->height;
-        y = i/g->height;
+        x = i%(g->width);
+        y = i/(g->width);
 
         curCel = &g->grid[y][x];
 
@@ -157,37 +131,42 @@ void place_mines(GameData* g){
         }
     }
 }
-/*
-void draw_mines(int startx, int starty, GameData* g){
-    int rows = get_grid_height(g->height);
-    int cols = get_grid_width(g->width);
 
+void get_adjacent_mines(uint x, int y, GameData* g){
+    assert("cell must be within game grid"
+           && y >= 0 && y < g->height 
+           && x >= 0 && x < g->width);
+
+
+
+}
+// ----------------- Game Rendering -----------------
+
+void draw_mines(int startx, int starty, GameData* g){
     for(int y=0; y < g->height; y++){
         for(int x=0; x < g->width; x++){
-            if(x % 4 == 2 && y%2 == 1){
-                if(g->grid[y][x].isMine) 
-                    tb_set_cell(startx+x, starty+y, mine, 0, 0);
+            if(g->grid[y][x].isMine){
+                tb_set_cell(startx+get_termgrid_x(x),
+                            starty+get_termgrid_y(y),
+                            mine, 0, 0);
             }
         }
     }
     tb_present();
 }
-*/
-
-int get_center_x_offset(int width){
-    return (tb_width() - width)/2;
+int get_termgrid_x(int x){
+    return 2+(4*x);
 }
 
-int get_center_y_offset (int height){
-    return (tb_height() - height)/2;
-
+int get_termgrid_y(int y){
+    return 1+(2*y);
 }
 
-int get_grid_height(int cellsX){
-    return cellsX * 2+1;
+int get_termgrid_height(int height){
+    return height* 2+1;
 }
-int get_grid_width(int cellsY){
-    return cellsY*4+1;
+int get_termgrid_width(int width){
+    return width*4+1;
 }
 
 void draw_grid(int startx, int starty, int width, int height, uintattr_t fg, uintattr_t bg){
@@ -264,6 +243,7 @@ void make_game_selection(GameData* g){
         {16, 16, 40}, // Option 2: 16x16 grid, 40 mines
         {30, 16, 99}  // Option 3: 24x24 grid, 99 mines
     };
+
     uint8_t number_of_options = 3; // including custom option
     uint8_t selection = 0;
     GameSettings selected_setting;
@@ -301,6 +281,7 @@ void make_game_selection(GameData* g){
     }
     g->width = selected_setting.width;
     g->height = selected_setting.height;
+    g->mine_count = selected_setting.mine_count;
 }
 
 GameSettings make_custom_selection(BoxCoordinates b){
@@ -432,6 +413,14 @@ void draw_box(BoxCoordinates b, uintattr_t fg, uintattr_t bg){
         }
     }
     tb_present();
+}
+
+
+int get_center_x_offset(int width){
+    return (tb_width() - width)/2;
+}
+int get_center_y_offset (int height){
+    return (tb_height() - height)/2;
 }
 
 

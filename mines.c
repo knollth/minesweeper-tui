@@ -96,26 +96,45 @@ void init_game(){
 
     place_mines(&g);
     draw_mines(&g);
+    start_game_loop(&g);
 
     tb_poll_event(&ev);
     free_game_grid(&g);
     return;
 }
-/*
-void handle_game_input(GameData* g){
+void start_game_loop(GameData* g){
     struct tb_event ev;
-    tb_poll_event(&ev);
-    int ch = ev.ch;
 
     uint16_t curX = 0;
     uint16_t curY = 0;
 
+    int finished = false;
 
 
+    while(!finished){
+        tb_poll_event(&ev);
+        if (ev.type != TB_EVENT_KEY) continue;
 
-    while()
+        switch(ev.ch){
+            case 'h':
+                (curX == 0)? curX=g->width-1: curX--;
+                break;
+            case 'l':
+                (curX == g->width-1)? curX=0: curX++;
+                break;
+            case 'j':
+                (curY == g->width-1)? curX=g->width-1: curX++;
+                break;
+            case 'k':
+                (curY == 0)? curY = g->height-1: curY--;
+                break;
+            case 'q': finished=true;
+            default:
+                break;
+        }
+        draw_cursor(curX, curY, g);
+    }
 }
-*/
 
 void allocate_game_grid(GameData* g){
     //g->grid = malloc(g->height*sizeof(CellData*));
@@ -204,9 +223,10 @@ void draw_cursor(uint16_t x, uint16_t y, GameData* g){
     uint16_t disp_x = startx+DISPLAY_GRID_X(x);
     uint16_t disp_y = starty+DISPLAY_GRID_Y(x);
 
-    tb_set_cell(disp_x,  disp_y, (char)c.adjMines, 0, TB_BRIGHT);
-    tb_set_cell(disp_x-1,  disp_y, (char)c.adjMines, 0, TB_BRIGHT);
-    tb_set_cell(disp_x+1,  disp_y, (char)c.adjMines, 0, TB_BRIGHT);
+    tb_set_cell(disp_x,  disp_y, 'X', 0, TB_BRIGHT);
+    tb_set_cell(disp_x-1,  disp_y,'X', 0, TB_BRIGHT);
+    tb_set_cell(disp_x+1,  disp_y,'X', 0, TB_BRIGHT);
+    tb_present();
 }
 
 

@@ -40,6 +40,7 @@ void place_mines(GameData* g);
 void incr_adj_minecounts(uint16_t x, uint16_t y, GameData* g);
 void update_adjcell_minecount(uint16_t x, uint16_t y, GameData* g);
 
+void start_game_loop(GameData* g);
 void draw_mines(GameData* g);
 void format_display_cell(uint16_t x, uint16_t y, uint16_t fg, uint16_t bg);
 void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg);

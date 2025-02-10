@@ -25,7 +25,7 @@ inline uint16_t display_grid_startx(GameData* g){
 }
 
 inline uint16_t display_grid_starty(GameData* g){
-    return (tb_height() - (DISPLAY_GRID_HEIGHT(g->height)))/2;
+    return (tb_height() - DISPLAY_GRID_HEIGHT(g->height))/2;
 }
 
 //    int starty = (tb_height()-rows)/2;
@@ -112,27 +112,27 @@ void start_game_loop(GameData* g){
 
 
     while(!finished){
+        draw_cursor(curX, curY, g);
         tb_poll_event(&ev);
         if (ev.type != TB_EVENT_KEY) continue;
 
         switch(ev.ch){
             case 'h':
-                (curX == 0)? curX=g->width-1: curX--;
+                (curX <= 0) ? curX=g->width-1 : curX--;
                 break;
             case 'l':
-                (curX == g->width-1)? curX=0: curX++;
+                (curX >= g->width-1)? curX=0 : curX++;
                 break;
             case 'j':
-                (curY == g->width-1)? curX=g->width-1: curX++;
+                (curY >= g->height-1)? curY=0 : curY++;
                 break;
             case 'k':
-                (curY == 0)? curY = g->height-1: curY--;
+                (curY <= 0) ? curY = g->height-1: curY--;
                 break;
             case 'q': finished=true;
             default:
                 break;
         }
-        draw_cursor(curX, curY, g);
     }
 }
 
@@ -221,11 +221,17 @@ void draw_cursor(uint16_t x, uint16_t y, GameData* g){
     uint16_t starty = display_grid_starty(g);
 
     uint16_t disp_x = startx+DISPLAY_GRID_X(x);
-    uint16_t disp_y = starty+DISPLAY_GRID_Y(x);
+    uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
 
+    tb_printf(0, 0, 0, 0, "curX: %d | curY: %d | gridx: %d | gridy: %d", x, y ,disp_x, disp_y );
+    tb_printf(0, 1, 0, 0, "startx: %d | starty: %d | disp_x: %d | disp_y %d", startx, starty, disp_x, disp_y);
+/*
     tb_set_cell(disp_x,  disp_y, 'X', 0, TB_BRIGHT);
     tb_set_cell(disp_x-1,  disp_y,'X', 0, TB_BRIGHT);
     tb_set_cell(disp_x+1,  disp_y,'X', 0, TB_BRIGHT);
+    tb_present();
+    */
+    tb_set_cursor(disp_x, disp_y);
     tb_present();
 }
 
@@ -233,6 +239,7 @@ void draw_cursor(uint16_t x, uint16_t y, GameData* g){
 void draw_mines(GameData* g){
     uint16_t startx = display_grid_startx(g);
     uint16_t starty = display_grid_starty(g);
+
     for(int y=0; y < g->height; y++){
         for(int x=0; x < g->width; x++){
             CellData curCel = g->grid[y][x];
@@ -304,8 +311,6 @@ void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
     }
     tb_present();
 }
-
-
 
 
 // ----------------- Game Menu -----------------

@@ -28,6 +28,7 @@ inline uint16_t display_grid_starty(GameData* g){
     return (tb_height() - DISPLAY_GRID_HEIGHT(g->height))/2;
 }
 
+
 //    int starty = (tb_height()-rows)/2;
 
 
@@ -52,6 +53,7 @@ const uint32_t intersection_left = 0x251C; // '├'
 const uint32_t intersection_right = 0x2524; // '┤'
 //
 wchar_t flag = L'⚑';
+wchar_t flag_emoji = L'🚩';
 wchar_t mine = L'💣';
 
 
@@ -107,14 +109,35 @@ void start_game_loop(GameData* g){
 
     uint16_t curX = 0;
     uint16_t curY = 0;
+    CellData* curCell;
 
     int finished = false;
 
 
     while(!finished){
         draw_cursor(curX, curY, g);
+        draw_cell_info(curX, curY, g);
+        draw_mines(g);
+
+
+        curCell = &g->grid[curY][curX];
         tb_poll_event(&ev);
+        
+
+        // WIP: TB_KEY_SPACE not set when space pressed 
+        if (ev.key & TB_KEY_SPACE){
+           curCell->flags ^= (0 << (CELL_FLAGGED-1)); 
+        } 
+        if (ev.key == TB_KEY_ENTER){
+            if(curCell->flags & CELL_IS_MINE){
+                draw_finished(g);
+                tb_poll_event(&ev);
+            }
+            curCell->flags |= CELL_DISCOVERED; 
+        }
+
         if (ev.type != TB_EVENT_KEY) continue;
+
 
         switch(ev.ch){
             case 'h':
@@ -129,11 +152,15 @@ void start_game_loop(GameData* g){
             case 'k':
                 (curY <= 0) ? curY = g->height-1: curY--;
                 break;
+            case 'f': 
+                curCell->flags ^= (1 << 2); 
+                break;
             case 'q': finished=true;
             default:
                 break;
         }
     }
+
 }
 
 void allocate_game_grid(GameData* g){
@@ -181,8 +208,8 @@ void place_mines(GameData* g){
 
         curCel = &g->grid[y][x];
 
-        if(!(curCel->isMine)){
-            curCel->isMine = true;
+        if(!(curCel->flags & CELL_IS_MINE)){
+            curCel->flags |= CELL_IS_MINE;
             incr_adj_minecounts(x, y, g);
             count++;
         }
@@ -215,6 +242,24 @@ void incr_adj_minecounts(uint16_t x, uint16_t y, GameData* g){
 
 // ----------------- Game Rendering -----------------
 //
+void draw_cell_info(uint16_t x, uint16_t y, GameData* g){
+    uint16_t startx = display_grid_startx(g);
+    uint16_t starty = display_grid_starty(g);
+
+    uint16_t disp_x = startx+DISPLAY_GRID_X(x);
+    uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
+
+    CellData c = g->grid[y][x];
+
+    char isMine = (c.flags & CELL_IS_MINE) ? 'y' : 'n';
+    char isFlagged = (c.flags & CELL_DISCOVERED) ? 'y' : 'n';
+    char isDiscovered = (c.flags & CELL_FLAGGED) ? 'y' : 'n';
+
+    tb_printf(0, 0, 0, 0, "curX: %d | curY: %d | gridx: %d | gridy: %d", x, y ,disp_x, disp_y );
+    tb_printf(0, 1, 0, 0, "startx: %d | starty: %d | disp_x: %d | disp_y %d", startx, starty, disp_x, disp_y);
+    tb_printf(0, 2, 0, 0, "isMine: %c | isFlagged: %c | isDiscovered: %c ", isMine, isDiscovered, isFlagged);
+}
+
 void draw_cursor(uint16_t x, uint16_t y, GameData* g){
     CellData c = g->grid[y][x];
     uint16_t startx = display_grid_startx(g);
@@ -223,8 +268,7 @@ void draw_cursor(uint16_t x, uint16_t y, GameData* g){
     uint16_t disp_x = startx+DISPLAY_GRID_X(x);
     uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
 
-    tb_printf(0, 0, 0, 0, "curX: %d | curY: %d | gridx: %d | gridy: %d", x, y ,disp_x, disp_y );
-    tb_printf(0, 1, 0, 0, "startx: %d | starty: %d | disp_x: %d | disp_y %d", startx, starty, disp_x, disp_y);
+    
 /*
     tb_set_cell(disp_x,  disp_y, 'X', 0, TB_BRIGHT);
     tb_set_cell(disp_x-1,  disp_y,'X', 0, TB_BRIGHT);
@@ -247,13 +291,40 @@ void draw_mines(GameData* g){
             uint16_t disp_x = startx+DISPLAY_GRID_X(x);
             uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
 
-            //if(curCel.isDiscovered){
-                if(curCel.isMine){
+
+            tb_set_cell(disp_x, disp_y, ' ' , 0, 0);
+            if(curCel.flags & CELL_DISCOVERED){
+                if(curCel.flags & CELL_IS_MINE){
                     tb_set_cell(disp_x,disp_y,mine, 0, 0);
                 } else if(curCel.adjMines > 0){
                     tb_printf(disp_x,disp_y,0,0,"%d", curCel.adjMines);
                 }
-           //}
+           } else if(curCel.flags & CELL_FLAGGED) {
+                tb_set_cell(disp_x, disp_y, flag, 0, 0);
+            }
+        }
+    }
+    tb_present();
+}
+
+
+void draw_finished(GameData* g){
+    uint16_t startx = display_grid_startx(g);
+    uint16_t starty = display_grid_starty(g);
+
+    for(int y=0; y < g->height; y++){
+        for(int x=0; x < g->width; x++){
+            CellData curCel = g->grid[y][x];
+
+            uint16_t disp_x = startx+DISPLAY_GRID_X(x);
+            uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
+
+            tb_set_cell(disp_x, disp_y, ' ' , 0, 0);
+            if(curCel.flags & CELL_IS_MINE){
+                tb_set_cell(disp_x,disp_y,mine, 0, 0);
+            } else if(curCel.adjMines > 0){
+                tb_printf(disp_x,disp_y,0,0,"%d", curCel.adjMines);
+            }
         }
     }
     tb_present();
@@ -311,6 +382,8 @@ void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
     }
     tb_present();
 }
+
+char det_character(uint16_t x <)
 
 
 // ----------------- Game Menu -----------------

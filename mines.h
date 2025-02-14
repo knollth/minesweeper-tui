@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define CELL_IS_MINE     0x01  // 00000001
+#define CELL_DISCOVERED  0x02  // 00000010
+#define CELL_FLAGGED     0x04  // 00000100
+
 typedef struct {
     int width;
     int height;
@@ -13,9 +17,7 @@ typedef struct {
 
 
 typedef struct {
-    uint8_t isMine;
-    uint8_t isDiscovered;
-    uint8_t isFlagged;
+    uint8_t flags;
     uint8_t adjMines;
 } CellData;
 
@@ -45,6 +47,8 @@ void draw_mines(GameData* g);
 void format_display_cell(uint16_t x, uint16_t y, uint16_t fg, uint16_t bg);
 void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg);
 void draw_cursor(uint16_t x, uint16_t y, GameData* g);
+void draw_cell_info(uint16_t x, uint16_t y, GameData* g);
+void draw_finished(GameData* g);
 
 int get_display_grid_x(int x);
 int get_display_grid_y(int y);

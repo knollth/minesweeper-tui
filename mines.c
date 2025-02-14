@@ -261,7 +261,7 @@ void draw_cell_info(uint16_t x, uint16_t y, GameData* g){
 }
 
 void draw_cursor(uint16_t x, uint16_t y, GameData* g){
-    CellData c = g->grid[y][x];
+    //CellData c = g->grid[y][x];
     uint16_t startx = display_grid_startx(g);
     uint16_t starty = display_grid_starty(g);
 
@@ -383,7 +383,6 @@ void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
     tb_present();
 }
 
-char det_character(uint16_t x <)
 
 
 // ----------------- Game Menu -----------------

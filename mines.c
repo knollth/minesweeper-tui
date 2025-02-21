@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <wchar.h>
+#include <string.h>
 
 
 
@@ -12,6 +13,9 @@
 #define DISPLAY_GRID_Y(y) (1 + 2 * (y))
 #define DISPLAY_GRID_HEIGHT(h) ((h) * 2 + 1)
 #define DISPLAY_GRID_WIDTH(w) ((w) * 4 + 1)
+
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 
 inline uint16_t display_grid_startx(GameData* g){
     return (tb_width() - DISPLAY_GRID_WIDTH(g->width))/2;
@@ -71,15 +75,10 @@ void init_game(){
     if(g.grid == NULL){
         tb_clear();
         tb_printf(0, 0, 0, 0, "error allocating grid");
+        tb_present();
         tb_poll_event(&ev);
         return;
     }
-
-    tb_clear();
-    tb_printf(0, 0, 0, 0, "Height: %d, Width: %d, Mines: %d",
-              g.width, g.height, g.mine_count);
-    tb_present();
-    tb_poll_event(&ev);
     tb_clear();
 
     draw_display_grid(&g, 0, 0);
@@ -88,8 +87,9 @@ void init_game(){
     draw_mines(&g);
     start_game_loop(&g);
 
-    tb_poll_event(&ev);
     free_game_grid(&g);
+
+
     return;
 }
 void start_game_loop(GameData* g){
@@ -125,6 +125,9 @@ void start_game_loop(GameData* g){
                 if(first_turn){
                     move_mine(curX, curY, g);
                 } else {
+
+                    draw_finished(g);
+                    tb_poll_event(&ev);
                     finished = true;
                 }
             }
@@ -152,15 +155,11 @@ void start_game_loop(GameData* g){
             case 'f': 
                 curCell->flags ^= (1 << 2); 
                 break;
-            case 'q': finished=true;
+            case 'q': finished=quit_dialogue(g);
             default:
                 break;
         }
     }
-
-    draw_finished(g);
-    tb_poll_event(&ev);
-
 }
 
 void allocate_game_grid(GameData* g){
@@ -285,7 +284,6 @@ void flood_fill_discover(GameData* g, uint16_t x, uint16_t y){
         if(g->grid[c.y][c.x].adjMines > 0){
             continue;
         }
-
 
         upper_y = (c.y == g->height-1) ? c.y: c.y+1; 
         lower_y = (c.y == 0) ? c.y: c.y-1; 
@@ -485,7 +483,41 @@ void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
 
 
 // ----------------- Game Menu -----------------
-//
+
+uint8_t quit_dialogue(GameData* g){
+    BoxCoordinates b;
+    struct tb_event ev;
+
+    b.width = DISPLAY_GRID_WIDTH(g->width) * 0.5;
+    b.height = DISPLAY_GRID_HEIGHT(g->height) * 0.4;
+
+    center_box(&b,tb_width(), tb_height());
+    draw_box(b, TB_RED, 0);
+    uint8_t sel = false;
+
+    uintattr_t yes_color;
+    uintattr_t no_color;
+
+    clear_box_content(b);
+
+    while(ev.key != TB_KEY_ENTER ){
+        sel = (ev.ch == 'h' || ev.ch == 'l') ? !sel : sel;
+
+        yes_color = (sel) ? TB_GREEN : 0;
+        no_color = (!sel) ? TB_GREEN : 0;
+
+        tb_printf(b.offset_x+1, b.offset_y, 0, 0, "quit game?");
+        tb_printf(b.offset_x+1, b.offset_y+b.height-2, yes_color , 0, "[ yes ]" );
+        tb_printf(b.offset_x+9, b.offset_y+b.height-2, no_color , 0, "[ no ]" );
+        tb_present();
+
+        tb_poll_event(&ev);
+        clear_box_content(b);
+    }
+
+    return sel;
+}
+
 void make_game_selection(GameData* g){
     struct tb_event ev;
     int width = tb_width();
@@ -643,8 +675,8 @@ void clear_box_content(BoxCoordinates b){
     assert(b.width + b.offset_x < tb_width() && "Box width must be smaller than terminal width");
     assert(b.height + b.offset_y < tb_height() && "Box height must be smaller than terminal height");
 
-    for(int y = 1; y < b.height-2; y++){
-        for(int x = 1; x < b.width-2; x++){
+    for(int y = 1; y < b.height-1; y++){
+        for(int x = 1; x < b.width-1; x++){
             tb_set_cell(b.offset_x+x, b.offset_y+y, ' ' ,0, 0);
         }
     }

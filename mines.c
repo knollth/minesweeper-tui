@@ -108,6 +108,7 @@ void start_game_loop(GameData* g){
         draw_display_grid(g, 0, 0);
         draw_cursor(curX, curY, g);
         draw_cell_info(curX, curY, g);
+        draw_control_info(0, tb_height()-1);
         draw_mines(g);
 
 
@@ -329,6 +330,11 @@ CellCoords dequeue(Queue* q){
 }
 
 // ----------------- Game Rendering -----------------
+//
+void draw_control_info(uint16_t startx, uint16_t starty){
+    //tb_printf(startx, starty-1, 0, 0, "[ left: h ]  [ right: l ] [ up: k ] [ down: j ]");
+    tb_printf(startx, starty, 0, 0, "[ quit: q ]  [ reveal: ENTER ] [ flag: f ]" );
+}
 
 void draw_cell_info(uint16_t x, uint16_t y, GameData* g){
     uint16_t startx = display_grid_startx(g);

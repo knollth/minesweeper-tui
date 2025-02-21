@@ -70,6 +70,7 @@ void format_display_cell(uint16_t x, uint16_t y, uint16_t fg, uint16_t bg);
 void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg);
 void draw_cursor(uint16_t x, uint16_t y, GameData* g);
 void draw_cell_info(uint16_t x, uint16_t y, GameData* g);
+void draw_control_info(uint16_t startx, uint16_t starty);
 void draw_finished(GameData* g);
 
 uint8_t quit_dialogue(GameData *g);

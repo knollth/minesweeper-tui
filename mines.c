@@ -13,17 +13,9 @@
 #define DISPLAY_GRID_HEIGHT(h) ((h) * 2 + 1)
 #define DISPLAY_GRID_WIDTH(w) ((w) * 4 + 1)
 
-inline uint16_t get_center_x_offset(int width){
-    return (tb_width() - width)/2;
-}
-inline uint16_t get_center_y_offset (int height){
-    return (tb_height() - height)/2;
-}
-
 inline uint16_t display_grid_startx(GameData* g){
     return (tb_width() - DISPLAY_GRID_WIDTH(g->width))/2;
 }
-
 inline uint16_t display_grid_starty(GameData* g){
     return (tb_height() - DISPLAY_GRID_HEIGHT(g->height))/2;
 }
@@ -493,8 +485,7 @@ void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
 
 
 // ----------------- Game Menu -----------------
-
-
+//
 void make_game_selection(GameData* g){
     struct tb_event ev;
     int width = tb_width();
@@ -505,14 +496,9 @@ void make_game_selection(GameData* g){
     
     menu_box.width    = width*0.3;
     menu_box.height   = height*0.6;
-    //menu_box.offset_x = (width - menu_box.width)/2;
-    //menu_box.offset_y = (height - menu_box.height)/2;
-    menu_box.offset_x = get_center_x_offset(menu_box.width);
-    menu_box.offset_y = get_center_y_offset(menu_box.height);
-    
-    draw_box(menu_box, TB_GREEN|TB_BOLD,0);
+    center_box(&menu_box, tb_width(), tb_height());
 
-    
+    draw_box(menu_box, TB_GREEN|TB_BOLD,0);
 
     GameSettings options[] = { // provisoric, should later be able to save custom game settings
         {8, 8, 10},   // Option 1: 8x8 grid, 10 mines
@@ -663,6 +649,11 @@ void clear_box_content(BoxCoordinates b){
         }
     }
     tb_present();
+}
+
+void center_box(BoxCoordinates* b, int rel_width, int rel_height){
+    b->offset_x = (rel_width - b->width)/2;
+    b->offset_y = (rel_height - b->height)/2;
 }
 
 void draw_box(BoxCoordinates b, uintattr_t fg, uintattr_t bg){

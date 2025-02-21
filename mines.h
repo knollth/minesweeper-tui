@@ -72,6 +72,9 @@ void draw_cursor(uint16_t x, uint16_t y, GameData* g);
 void draw_cell_info(uint16_t x, uint16_t y, GameData* g);
 void draw_finished(GameData* g);
 
+uint8_t quit_dialogue();
+
+
 int get_display_grid_x(int x);
 int get_display_grid_y(int y);
 
@@ -82,6 +85,7 @@ int get_display_grid_width(int width);
 //static inline int get_center_x_offset(int width);
 //static inline int get_center_y_offset (int height);
 
+void center_box(BoxCoordinates* b, int rel_width, int rel_height);
 
 
 

@@ -4,9 +4,14 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define CELL_IS_MINE     0x01  // 00000001
-#define CELL_DISCOVERED  0x02  // 00000010
-#define CELL_FLAGGED     0x04  // 00000100
+#define CELL_IS_MINE    0x01  // 00000001
+#define CELL_DISCOVERED 0x02  // 00000010
+#define CELL_FLAGGED    0x04  // 00000100
+//
+#define MAX_HEIGHT      24
+#define MAX_WIDTH       30
+//#define MAX_QUEUE_SIZE  2*(MAX_WIDTH+MAX_HEIGHT)+50
+#define MAX_QUEUE_SIZE  (MAX_WIDTH*MAX_HEIGHT)
 
 typedef struct {
     int width;
@@ -34,7 +39,23 @@ typedef struct {
     int mine_count;
 } GameSettings;
 
+typedef struct {
+    uint8_t x;
+    uint8_t y;
+} CellCoords;
 
+typedef struct {
+    CellCoords data[MAX_QUEUE_SIZE];
+    int front;
+    int rear;
+    int count;
+} Queue;
+
+
+void flood_fill_discover(GameData* g, uint16_t x, uint16_t y);
+void init_queue(Queue* q);
+void enqueue(Queue* q, int x, int y);
+CellCoords dequeue(Queue* q);
 
 void free_game_grid(GameData *game);
 void allocate_game_grid(GameData* g);

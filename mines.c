@@ -115,6 +115,8 @@ void start_game_loop(GameData* g){
 
 
     while(!finished){
+        tb_clear();
+        draw_display_grid(g, 0, 0);
         draw_cursor(curX, curY, g);
         draw_cell_info(curX, curY, g);
         draw_mines(g);
@@ -133,7 +135,8 @@ void start_game_loop(GameData* g){
                 draw_finished(g);
                 tb_poll_event(&ev);
             }
-            curCell->flags |= CELL_DISCOVERED; 
+            //curCell->flags |= CELL_DISCOVERED; 
+            flood_fill_discover(g, curX, curY);
         }
 
         if (ev.type != TB_EVENT_KEY) continue;
@@ -239,9 +242,77 @@ void incr_adj_minecounts(uint16_t x, uint16_t y, GameData* g){
 }
 
 
+// --------------------- Queue ---------------------
+
+void flood_fill_discover(GameData* g, uint16_t x, uint16_t y){
+    assert("cell must be within game grid" && 
+           y < g->height && x < g->width);
+
+    Queue q;
+    CellCoords c;
+
+    init_queue(&q);
+    enqueue(&q, x, y);
+    g->grid[y][x].flags |= CELL_DISCOVERED;
+
+    uint16_t upper_y; 
+    uint16_t lower_y; 
+    uint16_t upper_x; 
+    uint16_t lower_x; 
+
+    while(q.count > 0){
+        c = dequeue(&q);
+
+        if(g->grid[c.y][c.x].adjMines > 0){
+            continue;
+        }
+
+
+        upper_y = (c.y == g->height-1) ? c.y: c.y+1; 
+        lower_y = (c.y == 0) ? c.y: c.y-1; 
+        upper_x = (c.x == g->width-1) ? c.x: c.x+1; 
+        lower_x = (c.x == 0) ? c.x: c.x-1; 
+
+        for(int i = lower_y; i <= upper_y; i++){
+            for (int j = lower_x; j <= upper_x; j++){
+                if (i == c.y && j == c.x){
+                    continue;
+                }
+                if (!(g->grid[i][j].flags & CELL_DISCOVERED) &&
+                    !(g->grid[i][j].flags & CELL_IS_MINE)){
+                    g->grid[i][j].flags |= CELL_DISCOVERED;
+                    enqueue(&q, j, i);
+                }
+
+            }
+        }
+    }
+
+}
+
+
+void init_queue(Queue* q){
+    q->front = 0;
+    q->rear = -1;
+    q->count = 0;
+}
+
+void enqueue(Queue* q, int x, int y){
+    q->rear = (q->rear + 1) % MAX_QUEUE_SIZE;
+    q->data[q->rear].x = x; 
+    q->data[q->rear].y = y; 
+    q->count++;
+}
+
+CellCoords dequeue(Queue* q){
+    CellCoords c = q->data[q->front];
+    q->front = (q->front+1)%MAX_QUEUE_SIZE;
+    q->count--;
+    return c;
+}
 
 // ----------------- Game Rendering -----------------
-//
+
 void draw_cell_info(uint16_t x, uint16_t y, GameData* g){
     uint16_t startx = display_grid_startx(g);
     uint16_t starty = display_grid_starty(g);
@@ -255,9 +326,10 @@ void draw_cell_info(uint16_t x, uint16_t y, GameData* g){
     char isFlagged = (c.flags & CELL_DISCOVERED) ? 'y' : 'n';
     char isDiscovered = (c.flags & CELL_FLAGGED) ? 'y' : 'n';
 
-    tb_printf(0, 0, 0, 0, "curX: %d | curY: %d | gridx: %d | gridy: %d", x, y ,disp_x, disp_y );
-    tb_printf(0, 1, 0, 0, "startx: %d | starty: %d | disp_x: %d | disp_y %d", startx, starty, disp_x, disp_y);
-    tb_printf(0, 2, 0, 0, "isMine: %c | isFlagged: %c | isDiscovered: %c ", isMine, isDiscovered, isFlagged);
+    tb_printf(0, 0, 0, 0, "tb_height: %d | tb_width: %d ", tb_height(), tb_width());
+    tb_printf(0, 1, 0, 0, "curX: %d | curY: %d | gridx: %d | gridy: %d", x, y ,disp_x, disp_y );
+    tb_printf(0, 2, 0, 0, "startx: %d | starty: %d | disp_x: %d | disp_y %d", startx, starty, disp_x, disp_y);
+    tb_printf(0, 3, 0, 0, "isMine: %c | isFlagged: %c | isDiscovered: %c ", isMine, isDiscovered, isFlagged);
 }
 
 void draw_cursor(uint16_t x, uint16_t y, GameData* g){
@@ -299,8 +371,13 @@ void draw_mines(GameData* g){
                 } else if(curCel.adjMines > 0){
                     tb_printf(disp_x,disp_y,0,0,"%d", curCel.adjMines);
                 }
-           } else if(curCel.flags & CELL_FLAGGED) {
-                tb_set_cell(disp_x, disp_y, flag, 0, 0);
+           } else {
+                tb_set_cell(disp_x, disp_y, ' ', 0, TB_BLACK);
+                tb_set_cell(disp_x-1, disp_y, ' ', 0, TB_BLACK);
+                tb_set_cell(disp_x+1, disp_y, ' ', 0, TB_BLACK);
+                if(curCel.flags & CELL_FLAGGED) {
+                    tb_set_cell(disp_x, disp_y, flag, 0, TB_BLACK);
+                }
             }
         }
     }
@@ -451,6 +528,7 @@ void make_game_selection(GameData* g){
     g->width = selected_setting.width;
     g->height = selected_setting.height;
     g->mine_count = selected_setting.mine_count;
+    assert(g->width <= MAX_WIDTH && g->height <= MAX_HEIGHT);
 }
 
 GameSettings make_custom_selection(BoxCoordinates b){

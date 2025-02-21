@@ -60,7 +60,8 @@ CellCoords dequeue(Queue* q);
 void free_game_grid(GameData *game);
 void allocate_game_grid(GameData* g);
 void place_mines(GameData* g);
-void incr_adj_minecounts(uint16_t x, uint16_t y, GameData* g);
+void move_mine(uint16_t x, uint16_t y, GameData *g);
+void change_adj_minecounts(uint16_t x, uint16_t y, short delta, GameData* g);
 void update_adjcell_minecount(uint16_t x, uint16_t y, GameData* g);
 
 void start_game_loop(GameData* g);

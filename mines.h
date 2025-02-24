@@ -7,7 +7,10 @@
 #define CELL_IS_MINE    0x01  // 00000001
 #define CELL_DISCOVERED 0x02  // 00000010
 #define CELL_FLAGGED    0x04  // 00000100
-//
+
+
+#define IS_DISCOVERED(cell) ((cell.flags & CELL_DISCOVERED) != 0)
+
 #define MAX_HEIGHT      24
 #define MAX_WIDTH       30
 //#define MAX_QUEUE_SIZE  2*(MAX_WIDTH+MAX_HEIGHT)+50
@@ -30,7 +33,7 @@ typedef struct {
     int width;
     int height;
     int mine_count;
-    uint16_t num_flagged;
+    uint16_t flag_count;
     uint16_t num_discovered;
     CellData** grid;
 } GameData;
@@ -53,6 +56,9 @@ typedef struct {
     int count;
 } Queue;
 
+typedef enum game_action {DEFAULT, QUIT, FLAG, REVEAL, UP, DOWN, LEFT, RIGHT} game_action;
+enum game_state {ONGOING, LOST, WON, ABORT};
+
 
 void flood_fill_discover(uint16_t x, uint16_t y, GameData* g);
 void init_queue(Queue* q);
@@ -67,6 +73,13 @@ void move_mine(uint16_t x, uint16_t y, GameData *g);
 void change_adj_minecounts(uint16_t x, uint16_t y, short delta, GameData* g);
 void update_adjcell_minecount(uint16_t x, uint16_t y, GameData* g);
 
+
+uint8_t reveal_cell(uint16_t x, uint16_t y, GameData* g);
+uint8_t chord_cell(uint16_t x, uint16_t y, GameData* g);
+
+uint8_t get_adj_flagged_cells(uint16_t x, uint16_t y, GameData* g);
+void flag_cell(uint16_t x, uint16_t y, GameData* g);
+
 void start_game_loop(GameData* g);
 void draw_mines(GameData* g);
 void format_display_cell(uint16_t x, uint16_t y, uint16_t fg, uint16_t bg);
@@ -77,6 +90,7 @@ void draw_control_info(uint16_t startx, uint16_t starty);
 void draw_finished(GameData* g);
 
 uint8_t quit_dialogue(GameData *g);
+inline game_action get_action(struct tb_event ev);
 
 
 int get_display_grid_x(int x);

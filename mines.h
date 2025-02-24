@@ -30,6 +30,8 @@ typedef struct {
     int width;
     int height;
     int mine_count;
+    uint16_t num_flagged;
+    uint16_t num_discovered;
     CellData** grid;
 } GameData;
 
@@ -52,13 +54,14 @@ typedef struct {
 } Queue;
 
 
-void flood_fill_discover(GameData* g, uint16_t x, uint16_t y);
+void flood_fill_discover(uint16_t x, uint16_t y, GameData* g);
 void init_queue(Queue* q);
 void enqueue(Queue* q, int x, int y);
 CellCoords dequeue(Queue* q);
 
-void free_game_grid(GameData *game);
 void allocate_game_grid(GameData* g);
+void free_game_grid(GameData *game);
+
 void place_mines(GameData* g);
 void move_mine(uint16_t x, uint16_t y, GameData *g);
 void change_adj_minecounts(uint16_t x, uint16_t y, short delta, GameData* g);

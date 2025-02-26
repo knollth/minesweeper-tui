@@ -62,7 +62,7 @@ typedef struct {
 } Queue;
 
 typedef enum game_action {DEFAULT, QUIT, FLAG, REVEAL, UP, DOWN, LEFT, RIGHT} game_action;
-enum game_state {ONGOING, LOST, WON, ABORT};
+typedef enum game_state {ONGOING, LOST, WON, ABORT} game_state;
 
 
 void flood_fill_discover(uint16_t x, uint16_t y, GameData* g);
@@ -94,6 +94,7 @@ void draw_cell_info(uint16_t x, uint16_t y, GameData* g);
 void draw_control_info(uint16_t startx, uint16_t starty);
 void draw_finished(GameData* g);
 void draw_mines(GameData* g);
+void draw_game_info_bar(GameData* g, game_state status);
 
 inline uintattr_t get_fg_color(uint8_t adjMines);
 

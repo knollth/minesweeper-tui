@@ -53,9 +53,13 @@ const uint32_t bottom_intersection = 0x2534; // '┴'
 const uint32_t intersection_left = 0x251C; // '├'
 const uint32_t intersection_right = 0x2524; // '┤'
 //
-wchar_t flag = L'⚑';
-wchar_t flag_emoji = L'🚩';
-wchar_t mine = L'💣';
+const wchar_t flag = L'⚑';
+const wchar_t flag_emoji = L'🚩';
+const wchar_t mine = L'💣';
+const wchar_t emoji_loose   = L'😵';
+const wchar_t emoji_ongoing = L'🙂';
+const wchar_t emoji_win     = L'😄';
+
 
 int main() {
     tb_init();
@@ -75,9 +79,7 @@ void init_game(){
     while(!quit){
         if(!make_game_selection(&g)){
             return;
-
         }
-
         allocate_game_grid(&g);
         if(g.grid == NULL){
             tb_clear();
@@ -86,7 +88,8 @@ void init_game(){
             tb_poll_event(&ev);
             return;
         }
-
+        g.flag_count = 0;
+        g.num_discovered=0;
         place_mines(&g);
         quit = game_loop(&g);
         free_game_grid(&g);
@@ -112,6 +115,7 @@ uint8_t game_loop(GameData* g){
         draw_cursor(curX, curY, g);
         draw_cell_info(curX, curY, g);
         draw_control_info(0, tb_height()-1);
+        draw_game_info_bar(g, curState );
         draw_mines(g);
 
         curCell = &g->grid[curY][curX];
@@ -157,7 +161,9 @@ uint8_t game_loop(GameData* g){
             curState = WON;
     }
     draw_display_grid(g, 0, 0);
-    draw_finished(g);
+    //draw_finished(g);
+    draw_mines(g);
+    draw_game_info_bar(g, curState);
     tb_hide_cursor();
     uint8_t is_quit = !new_game_dialogue(g, (curState == WON));
     tb_clear();
@@ -226,21 +232,26 @@ uint8_t reveal_cell(uint16_t x, uint16_t y, GameData* g){
     uint16_t adjFlags = get_adj_flagged_cells(x,y,g);
 
     assert(c->adjMines <= 8 && c->adjMines >= 0);
+    assert("cell must be within game grid" 
+           && y < g->height 
+           && x < g->width);
+
+
     
-    if(isFlagged(*c))
+    if(isFlagged(*c) || (isDiscovered(*c) && c->adjMines == 0))
         return false;
+
+
     if(c->flags & CELL_IS_MINE){
         return true;
-    }
-    if(c->adjMines > 0 
-        && adjFlags == c->adjMines 
-        && isDiscovered(*c)){
-        return chord_cell(x, y, g);
-    }
-    if( c->adjMines == 0 ){
+    } else if( c->adjMines == 0 ){
         flood_fill_discover(x, y, g);
-    } 
-    c->flags |= CELL_DISCOVERED;
+    } else if (adjFlags == c->adjMines && isDiscovered(*c)){
+        return chord_cell(x, y, g);
+    } else {
+        c->flags |= CELL_DISCOVERED;
+        g->num_discovered++;
+    }
     return false;
 }
 
@@ -260,14 +271,17 @@ uint8_t chord_cell(uint16_t x, uint16_t y, GameData* g){
         for (int j = lower_x; j <= upper_x; j++){
             if (i == y && j == x) continue;
             c = &(g->grid[i][j]);
-            if(isFlagged(*c)) continue;
+            if(isFlagged(*c) || isDiscovered(*c)) 
+                continue;
 
-            if(isMine(*c))
+            if(isMine(*c)){
                 return true;
-            if(c->adjMines == 0){
+            } else if(c->adjMines == 0){
                 flood_fill_discover(j, i, g);
+            } else {
+                c->flags |= CELL_DISCOVERED;
+                g->num_discovered++;
             }
-            c->flags |= CELL_DISCOVERED;
         }
     }
     return false;
@@ -353,8 +367,11 @@ void move_mine(uint16_t x, uint16_t y, GameData *g){
 }
 
 void change_adj_minecounts(uint16_t x, uint16_t y, short delta, GameData* g){
-    assert("cell must be within game grid" &&
-           y < g->height && x < g->width && delta >= 0 && delta );
+    assert("cell must be within game grid" 
+           && y < g->height
+           && x < g->width 
+           && delta >= -1 
+           && delta <= 1);
 
     uint16_t lower_y = (y == 0) ? y: y-1; 
     uint16_t upper_y = (y == g->height-1) ? y: y+1; 
@@ -379,7 +396,7 @@ void flood_fill_discover(uint16_t x, uint16_t y, GameData* g){
            y < g->height && x < g->width);
 
     Queue q;
-    CellCoords c;
+    CellCoords coords;
 
     init_queue(&q);
     enqueue(&q, x, y);
@@ -388,27 +405,28 @@ void flood_fill_discover(uint16_t x, uint16_t y, GameData* g){
     g->num_discovered++;
 
     while(q.count > 0){
-        c = dequeue(&q);
+        coords = dequeue(&q);
 
-        if(g->grid[c.y][c.x].adjMines > 0){
+        if(g->grid[coords.y][coords.x].adjMines > 0){
             continue;
         }
 
-        uint8_t upper_y = (c.y == g->height-1) ? c.y: c.y+1; 
-        uint8_t lower_y = (c.y == 0) ? c.y: c.y-1; 
-        uint8_t upper_x = (c.x == g->width-1) ? c.x: c.x+1; 
-        uint8_t lower_x = (c.x == 0) ? c.x: c.x-1; 
+        uint8_t upper_y = (coords.y == g->height-1) ? coords.y: coords.y+1; 
+        uint8_t lower_y = (coords.y == 0) ? coords.y: coords.y-1; 
+        uint8_t upper_x = (coords.x == g->width-1) ? coords.x: coords.x+1; 
+        uint8_t lower_x = (coords.x == 0) ? coords.x: coords.x-1; 
 
         for(int i = lower_y; i <= upper_y; i++){
             for (int j = lower_x; j <= upper_x; j++){
-                if (i == c.y && j == c.x)
+                if (i == coords.y && j == coords.x)
                     continue;
                 
                 if (!(g->grid[i][j].flags & CELL_DISCOVERED) &&
                     !(g->grid[i][j].flags & CELL_IS_MINE)){
                     g->grid[i][j].flags |= CELL_DISCOVERED;
                     g->num_discovered++;
-                    enqueue(&q, j, i);
+                    if(g->grid[i][j].adjMines == 0)
+                        enqueue(&q, j, i);
                 }
             }
         }
@@ -526,6 +544,33 @@ inline uintattr_t get_fg_color(uint8_t adjMines){
     }
 }
 
+void draw_game_info_bar(GameData* g, game_state status){
+    uint16_t startx = display_grid_startx(g);
+    uint16_t starty = display_grid_starty(g);
+    uint16_t center_x = startx+(DISPLAY_GRID_WIDTH(g->width)/2);
+    wchar_t emoji;
+
+    switch (status){
+        case ONGOING: 
+            emoji = emoji_ongoing;
+            break;
+        case LOST:
+            emoji = emoji_loose;
+            break;
+        case WON:
+            emoji = emoji_win;
+            break;
+        default:
+            emoji = '?';
+    }
+
+
+    uint16_t flags_left = g->mine_count-g->flag_count;
+    
+    tb_set_cell(center_x-1, starty-1, emoji, 0, 0);
+    tb_printf(startx, starty-1, 0, 0, "%d", flags_left);
+}
+
 
 void draw_finished(GameData* g){
     uint16_t startx = display_grid_startx(g);
@@ -615,7 +660,7 @@ void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
 
 // ----------------- Game Menu -----------------
 
-
+/*
 uint8_t new_game_dialogue(GameData* g, uint8_t isWin){
     BoxCoordinates b;
     struct tb_event ev;
@@ -657,8 +702,7 @@ uint8_t new_game_dialogue(GameData* g, uint8_t isWin){
     }
 
     return sel;
-}
-
+}*/
 
 uint8_t quit_dialogue(GameData* g){
     BoxCoordinates b;
@@ -701,6 +745,38 @@ uint8_t quit_dialogue(GameData* g){
 
     return sel;
 }
+
+uint8_t new_game_dialogue(GameData* g, uint8_t isWin){
+    uintattr_t yes_color;
+    uintattr_t no_color;
+
+    uint16_t startx = display_grid_startx(g);
+    uint16_t starty = display_grid_starty(g);
+    uint16_t end_x = startx+DISPLAY_GRID_WIDTH(g->width);
+    uint16_t end_y = starty+DISPLAY_GRID_HEIGHT(g->width);
+
+    uint8_t sel = true;
+    struct tb_event ev;
+
+    do{
+        yes_color = (sel) ? TB_CYAN|TB_BRIGHT|TB_BOLD: 0;
+        no_color = (!sel) ? TB_CYAN|TB_BRIGHT|TB_BOLD: 0;
+
+        tb_printf(startx, end_y, yes_color, 0, "[new game]");
+        //tb_printf(center_x, .height-2, yes_color , 0, "[ yes ]" );
+        tb_printf(end_x-sizeof("[quit]"), end_y, no_color , 0, "[quit]" );
+        tb_present();
+
+        tb_poll_event(&ev);
+        sel = (ev.ch == 'h' || ev.ch == 'l') ? !sel : sel;
+       
+
+    } while (ev.key != TB_KEY_ENTER );
+
+    return sel;
+}
+
+
 
 uint8_t make_game_selection(GameData* g){
     struct tb_event ev;

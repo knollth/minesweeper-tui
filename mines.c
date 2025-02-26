@@ -240,19 +240,35 @@ uint8_t reveal_cell(uint16_t x, uint16_t y, GameData* g){
     
     if(isFlagged(*c) || (isDiscovered(*c) && c->adjMines == 0))
         return false;
-
-
     if(c->flags & CELL_IS_MINE){
         return true;
-    } else if( c->adjMines == 0 ){
+    } 
+
+    if( c->adjMines == 0 ){
         flood_fill_discover(x, y, g);
+        return false;
     } else if (adjFlags == c->adjMines && isDiscovered(*c)){
         return chord_cell(x, y, g);
-    } else {
+    } else if (!isDiscovered(*c) ){
         c->flags |= CELL_DISCOVERED;
         g->num_discovered++;
     }
     return false;
+}
+
+uint16_t get_num_discovered(GameData* g){
+    uint32_t num_disc = 0;
+
+    for(int i = 0; i < g->height; i++){
+        for(int j = 0; j < g->width; j++){
+            if(g->grid[i][j].flags & CELL_DISCOVERED){
+                num_disc++;
+            }
+        }
+    }
+
+
+    return num_disc;
 }
 
 
@@ -474,11 +490,13 @@ void draw_cell_info(uint16_t x, uint16_t y, GameData* g){
     char isDiscovered = (c.flags & CELL_DISCOVERED) ? 'y' : 'n';
     char isFlagged = (c.flags & CELL_FLAGGED) ? 'y' : 'n';
 
+    uint32_t disc_count_calc = get_num_discovered(g);
+
     tb_printf(0, 0, 0, 0, "tb_height: %d | tb_width: %d ", tb_height(), tb_width());
     tb_printf(0, 1, 0, 0, "curX: %d | curY: %d | gridx: %d | gridy: %d", x, y ,disp_x, disp_y );
     tb_printf(0, 2, 0, 0, "startx: %d | starty: %d | disp_x: %d | disp_y %d", startx, starty, disp_x, disp_y);
     tb_printf(0, 3, 0, 0, "isMine: %c | isFlagged: %c | isDiscovered: %c ", isMine, isFlagged, isDiscovered);
-    tb_printf(0, 4, 0, 0, "flag_count: %d | discovered_cell_count: %d", g->flag_count, g->num_discovered );
+    tb_printf(0, 4, 0, 0, "flag_count: %d | disc_cell_count: %d | disc_cell_count (calculated): %d", g->flag_count, g->num_discovered, disc_count_calc );
 }
 
 void draw_cursor(uint16_t x, uint16_t y, GameData* g){

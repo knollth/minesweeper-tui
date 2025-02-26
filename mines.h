@@ -65,6 +65,9 @@ typedef enum game_action {DEFAULT, QUIT, FLAG, REVEAL, UP, DOWN, LEFT, RIGHT} ga
 typedef enum game_state {ONGOING, LOST, WON, ABORT} game_state;
 
 
+uint16_t get_num_discovered(GameData* g);
+
+
 void flood_fill_discover(uint16_t x, uint16_t y, GameData* g);
 void init_queue(Queue* q);
 void enqueue(Queue* q, int x, int y);

@@ -58,18 +58,10 @@ wchar_t flag_emoji = L'🚩';
 wchar_t mine = L'💣';
 
 int main() {
-    //struct tb_event ev;
-    //int y = 0;
-
     tb_init();
     setlocale(LC_ALL, ""); /* Fix unicode handling */
     srand(time(NULL));
     init_game();
-
-
-    //tb_poll_event(&ev);
-
-
     tb_shutdown();
 
     return 0;
@@ -78,29 +70,31 @@ int main() {
 void init_game(){
     struct tb_event ev;
     GameData g = {};
-    make_game_selection(&g);
-    allocate_game_grid(&g);
-    if(g.grid == NULL){
-        tb_clear();
-        tb_printf(0, 0, 0, 0, "error allocating grid");
-        tb_present();
-        tb_poll_event(&ev);
-        return;
+    uint8_t quit = false;
+
+    while(!quit){
+        if(!make_game_selection(&g)){
+            return;
+
+        }
+
+        allocate_game_grid(&g);
+        if(g.grid == NULL){
+            tb_clear();
+            tb_printf(0, 0, 0, 0, "error allocating grid");
+            tb_present();
+            tb_poll_event(&ev);
+            return;
+        }
+
+        place_mines(&g);
+        quit = game_loop(&g);
+        free_game_grid(&g);
+
     }
-    tb_clear();
-
-    draw_display_grid(&g, 0, 0);
-
-    place_mines(&g);
-    draw_mines(&g);
-    start_game_loop(&g);
-
-    free_game_grid(&g);
-
-
     return;
 }
-void start_game_loop(GameData* g){
+uint8_t game_loop(GameData* g){
     struct tb_event ev;
     CellData* curCell;
 
@@ -143,7 +137,8 @@ void start_game_loop(GameData* g){
             flag_cell(curX, curY, g);
             break;
         case QUIT: 
-            if(quit_dialogue(g)) curState = ABORT;
+            //if(quit_dialogue(g)) curState = ABORT;
+            if(quit_dialogue(g)) return true;
             break;
         case REVEAL:
             if(first_turn && isMine(*curCell)) {
@@ -157,12 +152,16 @@ void start_game_loop(GameData* g){
         default:
                 break;
         }
+
+        if(((g->width*g->height)-g->num_discovered) == (g->mine_count))
+            curState = WON;
     }
-    tb_clear();
     draw_display_grid(g, 0, 0);
     draw_finished(g);
-    tb_poll_event(&ev);
-
+    tb_hide_cursor();
+    uint8_t is_quit = !new_game_dialogue(g, (curState == WON));
+    tb_clear();
+    return is_quit;
 }
 
 inline game_action get_action(struct tb_event ev) {
@@ -481,9 +480,12 @@ void draw_mines(GameData* g){
     uint16_t startx = display_grid_startx(g);
     uint16_t starty = display_grid_starty(g);
 
+    uintattr_t fg;
+
     for(int y=0; y < g->height; y++){
         for(int x=0; x < g->width; x++){
             CellData c = g->grid[y][x];
+            fg = get_fg_color(c.adjMines);
 
             uint16_t disp_x = startx+DISPLAY_GRID_X(x);
             uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
@@ -494,14 +496,14 @@ void draw_mines(GameData* g){
                 if(c.flags & CELL_IS_MINE){
                     tb_set_cell(disp_x,disp_y,mine, 0, 0);
                 } else if(c.adjMines > 0){
-                    tb_printf(disp_x,disp_y,0,0,"%d", c.adjMines);
+                    tb_printf(disp_x,disp_y,fg|TB_BOLD,0,"%d", c.adjMines);
                 }
            } else {
-                tb_set_cell(disp_x, disp_y, ' ', 0, TB_BLACK|TB_BRIGHT);
-                tb_set_cell(disp_x-1, disp_y, ' ', 0, TB_BLACK|TB_BRIGHT);
-                tb_set_cell(disp_x+1, disp_y, ' ', 0, TB_BLACK|TB_BRIGHT);
+                tb_set_cell(disp_x, disp_y, ' ', 0, TB_BLACK);
+                tb_set_cell(disp_x-1, disp_y, ' ', 0, TB_BLACK);
+                tb_set_cell(disp_x+1, disp_y, ' ', 0, TB_BLACK);
                 if(c.flags & CELL_FLAGGED) {
-                    tb_set_cell(disp_x, disp_y, flag, 0, TB_BLACK|TB_BRIGHT);
+                    tb_set_cell(disp_x, disp_y, flag, 0, TB_BLACK);
                 }
             }
         }
@@ -509,10 +511,27 @@ void draw_mines(GameData* g){
     tb_present();
 }
 
+inline uintattr_t get_fg_color(uint8_t adjMines){
+    switch(adjMines){
+        case 1: return TB_BLUE|TB_BRIGHT;
+        case 2: return TB_GREEN|TB_BRIGHT;
+        case 3: return TB_RED|TB_BRIGHT;
+        case 4: return TB_BLUE|TB_DIM;
+        case 5: return TB_RED|TB_DIM;
+        case 6: return TB_CYAN|TB_BRIGHT;
+        case 7: return TB_YELLOW|TB_BRIGHT;
+        case 8: return TB_MAGENTA|TB_BRIGHT;
+        default: return TB_DEFAULT;
+
+    }
+}
+
 
 void draw_finished(GameData* g){
     uint16_t startx = display_grid_startx(g);
     uint16_t starty = display_grid_starty(g);
+
+    uintattr_t fg;
 
     for(int y=0; y < g->height; y++){
         for(int x=0; x < g->width; x++){
@@ -521,14 +540,18 @@ void draw_finished(GameData* g){
             uint16_t disp_x = startx+DISPLAY_GRID_X(x);
             uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
 
+            fg = get_fg_color(c.adjMines);
+
+            
+
             tb_set_cell(disp_x-1,disp_y,' ', 0, 0);
             tb_set_cell(disp_x+1,disp_y,' ', 0, 0);
 
             tb_set_cell(disp_x, disp_y, ' ' , 0, 0);
             if(c.flags & CELL_IS_MINE){
-                tb_set_cell(disp_x,disp_y,mine, 0, 0);
+                tb_set_cell(disp_x-1,disp_y,mine, 0, 0);
             } else if(c.adjMines > 0){
-                tb_printf(disp_x,disp_y,0,0,"%d", c.adjMines);
+                tb_printf(disp_x,disp_y,fg|TB_BOLD,0,"%d", c.adjMines);
             }
         }
     }
@@ -592,15 +615,68 @@ void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
 
 // ----------------- Game Menu -----------------
 
+
+uint8_t new_game_dialogue(GameData* g, uint8_t isWin){
+    BoxCoordinates b;
+    struct tb_event ev;
+
+    const int title_h = 1;
+    const int min_margin = 2;
+    const int options_h = 1;
+    
+    const uint8_t min_width  = sizeof("  [new game] [ quit ]  ")+2;
+    const uint8_t min_height = title_h + min_margin + options_h + 2;
+
+    b.width = MAX(DISPLAY_GRID_WIDTH(g->width) * 0.5, min_width);
+    b.height = MAX(DISPLAY_GRID_HEIGHT(g->height) * 0.4, min_height);
+    
+    center_box(&b,tb_width(), tb_height());
+    draw_box(b, TB_BLUE, 0);
+    uint8_t sel = true;
+
+    uintattr_t yes_color;
+    uintattr_t no_color;
+
+    char* outcome_text = isWin ? "won" : "lost";
+
+    clear_box_content(b);
+
+    while(ev.key != TB_KEY_ENTER ){
+        sel = (ev.ch == 'h' || ev.ch == 'l') ? !sel : sel;
+
+        yes_color = (sel) ? TB_GREEN : 0;
+        no_color = (!sel) ? TB_GREEN : 0;
+
+        tb_printf(b.offset_x+1, b.offset_y, 0, 0, "You %s", outcome_text);
+        tb_printf(b.offset_x+1, b.offset_y+b.height-2, yes_color , 0, "[ new_game ]" );
+        tb_printf(b.offset_x+sizeof("[ new_game ]"), b.offset_y+b.height-2, no_color , 0, "[ quit ]" );
+        tb_present();
+
+        tb_poll_event(&ev);
+        clear_box_content(b);
+    }
+
+    return sel;
+}
+
+
 uint8_t quit_dialogue(GameData* g){
     BoxCoordinates b;
     struct tb_event ev;
 
-    b.width = DISPLAY_GRID_WIDTH(g->width) * 0.5;
-    b.height = DISPLAY_GRID_HEIGHT(g->height) * 0.4;
+    const int title_h = 1;
+    const int min_margin = 2;
+    const int options_h = 1;
+
+    const uint8_t min_width  = sizeof("  [new game] [ quit ]  ")+2;
+    const uint8_t min_height = title_h + min_margin + options_h + 2;
+
+
+    b.width = MAX(DISPLAY_GRID_WIDTH(g->width) * 0.5, min_width);
+    b.height = MAX(DISPLAY_GRID_HEIGHT(g->height) * 0.4, min_height);
 
     center_box(&b,tb_width(), tb_height());
-    draw_box(b, TB_RED, 0);
+    draw_box(b, TB_BLUE, 0);
     uint8_t sel = false;
 
     uintattr_t yes_color;
@@ -626,7 +702,7 @@ uint8_t quit_dialogue(GameData* g){
     return sel;
 }
 
-void make_game_selection(GameData* g){
+uint8_t make_game_selection(GameData* g){
     struct tb_event ev;
     int width = tb_width();
     int height = tb_height();
@@ -680,11 +756,15 @@ void make_game_selection(GameData* g){
             }
             break;
         }
+        if(ev.ch == 'q'){
+            return false;
+        }
     }
     g->width = selected_setting.width;
     g->height = selected_setting.height;
     g->mine_count = selected_setting.mine_count;
     assert(g->width <= MAX_WIDTH && g->height <= MAX_HEIGHT);
+    return true;
 }
 
 GameSettings make_custom_selection(BoxCoordinates b){

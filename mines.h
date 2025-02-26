@@ -16,6 +16,9 @@
 //#define MAX_QUEUE_SIZE  2*(MAX_WIDTH+MAX_HEIGHT)+50
 #define MAX_QUEUE_SIZE  (MAX_WIDTH*MAX_HEIGHT)
 
+
+// ----------------- UI -----------------
+
 typedef struct {
     int width;
     int height;
@@ -23,6 +26,8 @@ typedef struct {
     int offset_y;
 } BoxCoordinates;
 
+
+// ----------------- Game -----------------
 
 typedef struct {
     uint8_t flags;
@@ -80,16 +85,21 @@ uint8_t chord_cell(uint16_t x, uint16_t y, GameData* g);
 uint8_t get_adj_flagged_cells(uint16_t x, uint16_t y, GameData* g);
 void flag_cell(uint16_t x, uint16_t y, GameData* g);
 
-void start_game_loop(GameData* g);
-void draw_mines(GameData* g);
+
+uint8_t game_loop(GameData* g);
 void format_display_cell(uint16_t x, uint16_t y, uint16_t fg, uint16_t bg);
 void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg);
 void draw_cursor(uint16_t x, uint16_t y, GameData* g);
 void draw_cell_info(uint16_t x, uint16_t y, GameData* g);
 void draw_control_info(uint16_t startx, uint16_t starty);
 void draw_finished(GameData* g);
+void draw_mines(GameData* g);
 
+inline uintattr_t get_fg_color(uint8_t adjMines);
+
+uint8_t new_game_dialogue(GameData* g, uint8_t isWin);
 uint8_t quit_dialogue(GameData *g);
+
 inline game_action get_action(struct tb_event ev);
 
 
@@ -107,7 +117,7 @@ void center_box(BoxCoordinates* b, int rel_width, int rel_height);
 
 
 
-void make_game_selection(GameData* g);
+uint8_t make_game_selection(GameData* g);
 GameSettings make_custom_selection(BoxCoordinates b);
 void draw_custom_settings_menu(BoxCoordinates b, uint8_t selection);
 void draw_selection_menu(BoxCoordinates b, uint8_t selection, GameSettings opts[], uint8_t options_size);

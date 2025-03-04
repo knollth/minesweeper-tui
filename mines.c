@@ -7,8 +7,8 @@
 #include <wchar.h>
 #include <string.h>
 
-#define DISPLAY_GRID_X(x) (2 + 4 * (x))
-#define DISPLAY_GRID_Y(y) (1 + 2 * (y))
+#define GAME_TO_DISP_X(x) (2 + 4 * (x))
+#define GAME_TO_DISP_Y(y) (1 + 2 * (y))
 #define DISPLAY_GRID_HEIGHT(h) ((h) * 2 + 1)
 #define DISPLAY_GRID_WIDTH(w) ((w) * 4 + 1)
 
@@ -91,36 +91,31 @@ void init_game(){
         g.flag_count = 0;
         g.num_discovered=0;
         place_mines(&g);
-        quit = game_loop(&g);
+        game_loop(&g);
+        quit = (g.status==ABORT)? false : !new_game_dialogue(&g);
         free_game_grid(&g);
+        tb_clear();
 
     }
     return;
 }
-uint8_t game_loop(GameData* g){
+void game_loop(GameData* g){
     struct tb_event ev;
     CellData* curCell;
 
     uint16_t curX = 0;
     uint16_t curY = 0;
 
-    enum game_state curState = ONGOING;
+    g->status = ONGOING;
     enum game_action curAction;
 
     uint8_t first_turn = true;
 
-    while(curState == ONGOING){
-        tb_clear();
-        draw_display_grid(g, 0, 0);
-        draw_cursor(curX, curY, g);
-        draw_cell_info(curX, curY, g);
-        draw_control_info(0, tb_height()-1);
-        draw_game_info_bar(g, curState );
-        draw_mines(g);
-
+    while(g->status == ONGOING){
+        draw_game(curX, curY, g);
         curCell = &g->grid[curY][curX];
-        tb_poll_event(&ev);
 
+        tb_poll_event(&ev);
         curAction = get_action(ev);
         if (ev.type != TB_EVENT_KEY) continue;
 
@@ -141,8 +136,8 @@ uint8_t game_loop(GameData* g){
             flag_cell(curX, curY, g);
             break;
         case QUIT: 
-            //if(quit_dialogue(g)) curState = ABORT;
-            if(quit_dialogue(g)) return true;
+            if(quit_dialogue(g))
+                    g->status = ABORT;
             break;
         case REVEAL:
             if(first_turn && isMine(*curCell)) {
@@ -150,7 +145,7 @@ uint8_t game_loop(GameData* g){
             }
             first_turn = false;
             if(reveal_cell(curX, curY, g)){
-                curState = LOST;
+                g->status = LOST;
             }
             break;
         default:
@@ -158,16 +153,10 @@ uint8_t game_loop(GameData* g){
         }
 
         if(((g->width*g->height)-g->num_discovered) == (g->mine_count))
-            curState = WON;
+            g->status = WON;
     }
-    draw_display_grid(g, 0, 0);
-    //draw_finished(g);
-    draw_mines(g);
-    draw_game_info_bar(g, curState);
+    draw_game(curX, curY, g);
     tb_hide_cursor();
-    uint8_t is_quit = !new_game_dialogue(g, (curState == WON));
-    tb_clear();
-    return is_quit;
 }
 
 inline game_action get_action(struct tb_event ev) {
@@ -471,18 +460,47 @@ CellCoords dequeue(Queue* q){
 }
 
 // ----------------- Game Rendering -----------------
-//
-void draw_control_info(uint16_t startx, uint16_t starty){
-    //tb_printf(startx, starty-1, 0, 0, "[ left: h ]  [ right: l ] [ up: k ] [ down: j ]");
-    tb_printf(startx, starty, 0, 0, "[ quit: q ]  [ reveal: ENTER ] [ flag: f ]" );
+
+inline wchar_t get_status_emoji(game_status status){
+    switch (status){
+        case ONGOING: 
+            return emoji_ongoing;
+        case LOST:
+            return emoji_loose;
+            break;
+        case WON:
+            return emoji_win;
+            break;
+        default:
+            return '?';
+    }
 }
 
-void draw_cell_info(uint16_t x, uint16_t y, GameData* g){
+void draw_game(uint16_t x, uint16_t y, GameData* g){
     uint16_t startx = display_grid_startx(g);
     uint16_t starty = display_grid_starty(g);
 
-    uint16_t disp_x = startx+DISPLAY_GRID_X(x);
-    uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
+    uint16_t center_x = startx+(DISPLAY_GRID_WIDTH(g->width)/2);
+
+    tb_clear();
+
+    draw_display_grid(g, 0, 0);
+    draw_cell_contents(g);
+    tb_set_cursor(startx+GAME_TO_DISP_X(x), starty + GAME_TO_DISP_Y(y));
+
+    tb_set_cell(center_x-1, starty-1, get_status_emoji(g->status), 0, 0);
+    tb_printf(startx+1, starty-1, 0, 0, "%d", g->mine_count-g->flag_count);
+    tb_printf(0, tb_height()-1, 0, 0, "[ quit: q ]  [ reveal: ENTER ] [ flag: f ]" );
+
+    tb_present();
+}
+
+void draw_debug_info(uint16_t x, uint16_t y, GameData* g){
+    uint16_t startx = display_grid_startx(g);
+    uint16_t starty = display_grid_starty(g);
+
+    uint16_t disp_x = startx+GAME_TO_DISP_X(x);
+    uint16_t disp_y = starty+GAME_TO_DISP_Y(y);
 
     CellData c = g->grid[y][x];
 
@@ -499,20 +517,7 @@ void draw_cell_info(uint16_t x, uint16_t y, GameData* g){
     tb_printf(0, 4, 0, 0, "flag_count: %d | disc_cell_count: %d | disc_cell_count (calculated): %d", g->flag_count, g->num_discovered, disc_count_calc );
 }
 
-void draw_cursor(uint16_t x, uint16_t y, GameData* g){
-    //CellData c = g->grid[y][x];
-    uint16_t startx = display_grid_startx(g);
-    uint16_t starty = display_grid_starty(g);
-
-    uint16_t disp_x = startx+DISPLAY_GRID_X(x);
-    uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
-    
-    tb_set_cursor(disp_x, disp_y);
-    tb_present();
-}
-
-
-void draw_mines(GameData* g){
+void draw_cell_contents(GameData* g){
     uint16_t startx = display_grid_startx(g);
     uint16_t starty = display_grid_starty(g);
 
@@ -521,18 +526,17 @@ void draw_mines(GameData* g){
     for(int y=0; y < g->height; y++){
         for(int x=0; x < g->width; x++){
             CellData c = g->grid[y][x];
-            fg = get_fg_color(c.adjMines);
+            fg = get_fg_color(c.adjMines) | TB_BOLD;
 
-            uint16_t disp_x = startx+DISPLAY_GRID_X(x);
-            uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
-
+            uint16_t disp_x = startx+GAME_TO_DISP_X(x);
+            uint16_t disp_y = starty+GAME_TO_DISP_Y(y);
 
             tb_set_cell(disp_x, disp_y, ' ' , 0, 0);
-            if(c.flags & CELL_DISCOVERED){
+            if(c.flags & CELL_DISCOVERED || g->status != ONGOING){
                 if(c.flags & CELL_IS_MINE){
                     tb_set_cell(disp_x,disp_y,mine, 0, 0);
                 } else if(c.adjMines > 0){
-                    tb_printf(disp_x,disp_y,fg|TB_BOLD,0,"%d", c.adjMines);
+                    tb_printf(disp_x,disp_y,fg,0,"%d", c.adjMines);
                 }
            } else {
                 tb_set_cell(disp_x, disp_y, ' ', 0, TB_BLACK);
@@ -558,81 +562,15 @@ inline uintattr_t get_fg_color(uint8_t adjMines){
         case 7: return TB_YELLOW|TB_BRIGHT;
         case 8: return TB_MAGENTA|TB_BRIGHT;
         default: return TB_DEFAULT;
-
     }
 }
-
-void draw_game_info_bar(GameData* g, game_state status){
-    uint16_t startx = display_grid_startx(g);
-    uint16_t starty = display_grid_starty(g);
-    uint16_t center_x = startx+(DISPLAY_GRID_WIDTH(g->width)/2);
-    wchar_t emoji;
-
-    switch (status){
-        case ONGOING: 
-            emoji = emoji_ongoing;
-            break;
-        case LOST:
-            emoji = emoji_loose;
-            break;
-        case WON:
-            emoji = emoji_win;
-            break;
-        default:
-            emoji = '?';
-    }
-
-
-    uint16_t flags_left = g->mine_count-g->flag_count;
-    
-    tb_set_cell(center_x-1, starty-1, emoji, 0, 0);
-    tb_printf(startx, starty-1, 0, 0, "%d", flags_left);
-}
-
-
-void draw_finished(GameData* g){
-    uint16_t startx = display_grid_startx(g);
-    uint16_t starty = display_grid_starty(g);
-
-    uintattr_t fg;
-
-    for(int y=0; y < g->height; y++){
-        for(int x=0; x < g->width; x++){
-            CellData c = g->grid[y][x];
-
-            uint16_t disp_x = startx+DISPLAY_GRID_X(x);
-            uint16_t disp_y = starty+DISPLAY_GRID_Y(y);
-
-            fg = get_fg_color(c.adjMines);
-
-            
-
-            tb_set_cell(disp_x-1,disp_y,' ', 0, 0);
-            tb_set_cell(disp_x+1,disp_y,' ', 0, 0);
-
-            tb_set_cell(disp_x, disp_y, ' ' , 0, 0);
-            if(c.flags & CELL_IS_MINE){
-                tb_set_cell(disp_x-1,disp_y,mine, 0, 0);
-            } else if(c.adjMines > 0){
-                tb_printf(disp_x,disp_y,fg|TB_BOLD,0,"%d", c.adjMines);
-            }
-        }
-    }
-    tb_present();
-}
-
-  
 
 void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
     uint16_t rows = DISPLAY_GRID_HEIGHT(g->height);
     uint16_t cols = DISPLAY_GRID_WIDTH(g->width);
 
-    //int startx = (tb_width()-cols)/2;
     uint16_t startx = display_grid_startx(g);
-    //uint16_t starty = (tb_height()-rows)/2;
     uint16_t starty = display_grid_starty(g);
-
-
 
     for(int y=0; y < rows; y++){
         for(int x =0; x < cols; x++){
@@ -678,50 +616,6 @@ void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg){
 
 // ----------------- Game Menu -----------------
 
-/*
-uint8_t new_game_dialogue(GameData* g, uint8_t isWin){
-    BoxCoordinates b;
-    struct tb_event ev;
-
-    const int title_h = 1;
-    const int min_margin = 2;
-    const int options_h = 1;
-    
-    const uint8_t min_width  = sizeof("  [new game] [ quit ]  ")+2;
-    const uint8_t min_height = title_h + min_margin + options_h + 2;
-
-    b.width = MAX(DISPLAY_GRID_WIDTH(g->width) * 0.5, min_width);
-    b.height = MAX(DISPLAY_GRID_HEIGHT(g->height) * 0.4, min_height);
-    
-    center_box(&b,tb_width(), tb_height());
-    draw_box(b, TB_BLUE, 0);
-    uint8_t sel = true;
-
-    uintattr_t yes_color;
-    uintattr_t no_color;
-
-    char* outcome_text = isWin ? "won" : "lost";
-
-    clear_box_content(b);
-
-    while(ev.key != TB_KEY_ENTER ){
-        sel = (ev.ch == 'h' || ev.ch == 'l') ? !sel : sel;
-
-        yes_color = (sel) ? TB_GREEN : 0;
-        no_color = (!sel) ? TB_GREEN : 0;
-
-        tb_printf(b.offset_x+1, b.offset_y, 0, 0, "You %s", outcome_text);
-        tb_printf(b.offset_x+1, b.offset_y+b.height-2, yes_color , 0, "[ new_game ]" );
-        tb_printf(b.offset_x+sizeof("[ new_game ]"), b.offset_y+b.height-2, no_color , 0, "[ quit ]" );
-        tb_present();
-
-        tb_poll_event(&ev);
-        clear_box_content(b);
-    }
-
-    return sel;
-}*/
-
 uint8_t quit_dialogue(GameData* g){
     BoxCoordinates b;
     struct tb_event ev;
@@ -764,14 +658,14 @@ uint8_t quit_dialogue(GameData* g){
     return sel;
 }
 
-uint8_t new_game_dialogue(GameData* g, uint8_t isWin){
+uint8_t new_game_dialogue(GameData* g){
     uintattr_t yes_color;
     uintattr_t no_color;
 
     uint16_t startx = display_grid_startx(g);
     uint16_t starty = display_grid_starty(g);
     uint16_t end_x = startx+DISPLAY_GRID_WIDTH(g->width);
-    uint16_t end_y = starty+DISPLAY_GRID_HEIGHT(g->width);
+    uint16_t end_y = starty+DISPLAY_GRID_HEIGHT(g->height);
 
     uint8_t sel = true;
     struct tb_event ev;

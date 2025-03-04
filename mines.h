@@ -28,6 +28,9 @@ typedef struct {
 
 
 // ----------------- Game -----------------
+//
+typedef enum game_action {DEFAULT, QUIT, FLAG, REVEAL, UP, DOWN, LEFT, RIGHT} game_action;
+typedef enum game_status {ONGOING, LOST, WON, ABORT} game_status;
 
 typedef struct {
     uint8_t flags;
@@ -41,6 +44,7 @@ typedef struct {
     uint16_t flag_count;
     uint16_t num_discovered;
     CellData** grid;
+    game_status status;
 } GameData;
 
 typedef struct {
@@ -60,13 +64,7 @@ typedef struct {
     int rear;
     int count;
 } Queue;
-
-typedef enum game_action {DEFAULT, QUIT, FLAG, REVEAL, UP, DOWN, LEFT, RIGHT} game_action;
-typedef enum game_state {ONGOING, LOST, WON, ABORT} game_state;
-
-
 uint16_t get_num_discovered(GameData* g);
-
 
 void flood_fill_discover(uint16_t x, uint16_t y, GameData* g);
 void init_queue(Queue* q);
@@ -81,6 +79,7 @@ void move_mine(uint16_t x, uint16_t y, GameData *g);
 void change_adj_minecounts(uint16_t x, uint16_t y, short delta, GameData* g);
 void update_adjcell_minecount(uint16_t x, uint16_t y, GameData* g);
 
+inline wchar_t get_status_emoji(game_status s);
 
 uint8_t reveal_cell(uint16_t x, uint16_t y, GameData* g);
 uint8_t chord_cell(uint16_t x, uint16_t y, GameData* g);
@@ -89,19 +88,17 @@ uint8_t get_adj_flagged_cells(uint16_t x, uint16_t y, GameData* g);
 void flag_cell(uint16_t x, uint16_t y, GameData* g);
 
 
-uint8_t game_loop(GameData* g);
-void format_display_cell(uint16_t x, uint16_t y, uint16_t fg, uint16_t bg);
+void game_loop(GameData* g);
+
+
+void draw_game(uint16_t curX, uint16_t curY, GameData* g);
 void draw_display_grid(GameData* g, uintattr_t fg, uintattr_t bg);
-void draw_cursor(uint16_t x, uint16_t y, GameData* g);
-void draw_cell_info(uint16_t x, uint16_t y, GameData* g);
-void draw_control_info(uint16_t startx, uint16_t starty);
-void draw_finished(GameData* g);
-void draw_mines(GameData* g);
-void draw_game_info_bar(GameData* g, game_state status);
+void draw_debug_info(uint16_t x, uint16_t y, GameData* g);
+void draw_cell_contents(GameData* g);
 
 inline uintattr_t get_fg_color(uint8_t adjMines);
 
-uint8_t new_game_dialogue(GameData* g, uint8_t isWin);
+uint8_t new_game_dialogue(GameData* g);
 uint8_t quit_dialogue(GameData *g);
 
 inline game_action get_action(struct tb_event ev);

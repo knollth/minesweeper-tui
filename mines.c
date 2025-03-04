@@ -722,7 +722,7 @@ uint8_t make_game_selection(GameData* g){
         tb_poll_event(&ev);
 
         if(ev.key == TB_KEY_ARROW_DOWN || ev.ch == 'j'){
-            if(selection >= number_of_options){
+            if(selection >= number_of_options-1){
                 selection = 0;
             } else {
                 selection++;
@@ -736,7 +736,7 @@ uint8_t make_game_selection(GameData* g){
             }
         }
         if(ev.key == TB_KEY_ENTER){
-            if(selection == number_of_options){
+            if(false && selection == number_of_options){ // false cuz custom selection not implemented
                 clear_box_content(menu_box);
                 selected_setting = make_custom_selection(menu_box);
             } else {
@@ -815,8 +815,8 @@ void draw_custom_settings_menu(BoxCoordinates b, uint8_t selection){
         draw_box(mines_input_box,TB_BLUE,0);
     } else {
         draw_box(mines_input_box,0,0);
-
     }
+    tb_printf(0, tb_height()-1, 0, 0, "[ Back: q ]  [ Confirm: ENTER ]" );
 }
 
 void draw_selection_menu(BoxCoordinates b,uint8_t selection, GameSettings options[], uint8_t number_of_options){
@@ -827,13 +827,14 @@ void draw_selection_menu(BoxCoordinates b,uint8_t selection, GameSettings option
     tb_printf(offset_x, offset_y, TB_BOLD+TB_MAGENTA, 0, "select difficulty:");
     offset_y += 3;
 
-
+    /* custom option
     if(selection == number_of_options){
         tb_set_cell(offset_x-1, offset_y+number_of_options+1, '>', TB_BLUE, 0);
         tb_printf(offset_x, offset_y+number_of_options+1,TB_BLUE,0, "custom");
     } else {
         tb_printf(offset_x, offset_y+number_of_options+1,0,0, "custom");
     }
+    */
 
     for(int i = 0; i < number_of_options; i++){
         curOption = options[i];

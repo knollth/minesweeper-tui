@@ -1,3 +1,3 @@
 # minesweeper-tui
 
-Simple TUI Minesweeper Game written in C with Termbox
+Simple TUI Minesweeper Game written in C with Termbox2

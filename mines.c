@@ -522,6 +522,7 @@ void draw_cell_contents(GameData* g){
     uint16_t starty = display_grid_starty(g);
 
     uintattr_t fg;
+    uintattr_t bg = TB_BLACK | TB_BRIGHT;
 
     for(int y=0; y < g->height; y++){
         for(int x=0; x < g->width; x++){
@@ -539,11 +540,11 @@ void draw_cell_contents(GameData* g){
                     tb_printf(disp_x,disp_y,fg,0,"%d", c.adjMines);
                 }
            } else {
-                tb_set_cell(disp_x, disp_y, ' ', 0, TB_BLACK);
-                tb_set_cell(disp_x-1, disp_y, ' ', 0, TB_BLACK);
-                tb_set_cell(disp_x+1, disp_y, ' ', 0, TB_BLACK);
+                tb_set_cell(disp_x, disp_y, ' ', 0, bg);
+                tb_set_cell(disp_x-1, disp_y, ' ', 0, bg);
+                tb_set_cell(disp_x+1, disp_y, ' ', 0, bg);
                 if(c.flags & CELL_FLAGGED) {
-                    tb_set_cell(disp_x, disp_y, flag, 0, TB_BLACK);
+                    tb_set_cell(disp_x, disp_y, flag, 0, bg);
                 }
             }
         }
